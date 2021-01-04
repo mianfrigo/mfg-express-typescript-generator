@@ -1,11 +1,13 @@
 {
-  "name": "express-typescrtip-draf",
+  "name": "express-typescript-draf",
   "version": "1.0.0",
   "description": "npm package to generate boilerplate node express application with typescript and webpack",
   "main": "bin/cli.js",
   "script": {
     "express-typescrtip-draf": "node bin/cli.js",
-    "start": "node bin/cli.js"
+    "express-generator": "node bin/cli.js",
+    "start": "node bin/cli.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
     "express-typescrtip-draf": "node bin/cli.js",
