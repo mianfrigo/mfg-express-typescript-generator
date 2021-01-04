@@ -19,7 +19,7 @@ I highly encourage to use this option.
 
 ## Installation
 
-```sh
+```bash
 $ npm install -g @mianfrigo/express-typescript-generator
 ```
 
@@ -31,10 +31,11 @@ If you don't specify a project name, _express-ts_ will be set up for you as defa
 Create the app:
 
 ```bash
-$ express-generator "project name (default is express-ts)"
+$ mfg-express-generator "project name (default is express-ts)"
 ```
 
-Start your express-typescript-draf app in development mode at `http://localhost:3000/`:
+Start your @mianfrigo/express-typescript-generator app
+in development mode at `http://localhost:3000/`:
 
 ```bash
 $ cd "project name" && npm run dev
