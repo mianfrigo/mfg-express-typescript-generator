@@ -20,7 +20,7 @@ I highly encourage to use this option.
 ## Installation
 
 ```sh
-$ npm install -g express-typescript-draf
+$ npm install -g @mianfrigo/express-typescript-generator
 ```
 
 ## Quick Start
@@ -31,20 +31,20 @@ If you don't specify a project name, _express-ts_ will be set up for you as defa
 Create the app:
 
 ```bash
-$ npx express-typescript-draf "project name (default is express-ts)"
+$ express-generator "project name (default is express-ts)"
 ```
 
-Start your express-generator-typescript app in development mode at `http://localhost:3000/`:
+Start your express-typescript-draf app in development mode at `http://localhost:3000/`:
 
 ```bash
-$ cd "project name" && npm run dev:server
+$ cd "project name" && npm run dev
 ```
 
 ## Available commands for the server.
 
 - Run the production build: `npm start`.
 - Build the project for production: `npm run build`.
-- Run the server in development mode: `npm run dev:server`.
+- Run the server in development mode: `npm run dev`.
 
 ## Debugging
 

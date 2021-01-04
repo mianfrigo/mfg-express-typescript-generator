@@ -1,11 +1,11 @@
 {
-  "name": "express-typescript-draf-aplha",
-  "version": "1.0.11",
+  "name": "@mianfrigo/express-typescript-generator",
+  "version": "1.0.0",
   "description": "npm package to generate boilerplate node express application with typescript and webpack",
   "main": "bin/cli.js",
   "script": {},
   "bin": {
-    "express-typescrtip-draf": "bin/cli.js",
+    "express-typescript-generator": "bin/cli.js",
     "express-generator": "bin/cli.js"
   },
   "repository": {
