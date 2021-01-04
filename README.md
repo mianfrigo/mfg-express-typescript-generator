@@ -13,10 +13,8 @@ good practice and a clean code.
 When you run _express-typescript-draf_, it sets up a very basic application with a single basic route.
 This is to show how route work with node and express.
 
-If you want a fully-secure application, you can pass the `--with-auth` option and you will have an
-application which requires you to logon before calling APIs on user objects. The app is
-configured with production quality client-side security and uses signed-cookies and jsonwebtokens
-to store user-session data. If you're new to web-development and still learning about securing websites,
+If you want an application ready to use with and db, you can pass the `--mongo-db` option and you will have an
+application which is ready to use mongoDb. The app is configured with production quality client-side security.
 I highly encourage to use this option.
 
 ## Installation

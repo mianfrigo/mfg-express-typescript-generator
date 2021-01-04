@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "npm package to generate boilerplate node express application with typescript and webpack",
   "main": "bin/cli.js",
-  "script":{
+  "script": {
     "express-typescrtip-draf": "node bin/cli.js",
     "start": "node bin/cli.js"
   },
@@ -13,8 +13,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mianfrigo/express-typescript-generator.git"
-  },  
+    "url": "git+https://github.com/mianfrigo/express-typescript-draf.git"
+  },
   "keywords": [
     "express",
     "ex",
@@ -38,12 +38,20 @@
     "routes",
     "router",
     "routing"
-  ],  
+  ],
   "preferGlobal": true,
   "author": "Miguel Frias",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/mianfrigo/express-typescript-generator/issues"
+    "url": "https://github.com/mianfrigo/express-typescript-draf/issues"
   },
-  "homepage": "https://github.com/mianfrigo/express-typescript-generator.git"
+  "homepage": "https://github.com/mianfrigo/express-typescript-draf.git",
+  "dependencies": {
+    "boxen": "^5.0.0",
+    "chalk": "^4.1.0",
+    "edit-json-file": "^1.5.0",
+    "fs-extra": "^9.0.1",
+    "ncp": "^2.0.0",
+    "ora": "^5.2.0"
+  }
 }
