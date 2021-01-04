@@ -1,0 +1,49 @@
+{
+  "name": "express-typescrtip-draf",
+  "version": "1.0.0",
+  "description": "npm package to generate boilerplate node express application with typescript and webpack",
+  "main": "bin/cli.js",
+  "script":{
+    "express-typescrtip-draf": "node bin/cli.js",
+    "start": "node bin/cli.js"
+  },
+  "bin": {
+    "express-typescrtip-draf": "node bin/cli.js",
+    "express-generator": "node bin/cli.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mianfrigo/express-typescript-generator.git"
+  },  
+  "keywords": [
+    "express",
+    "ex",
+    "generator",
+    "generate",
+    "gen",
+    "typescript",
+    "ts",
+    "types",
+    "typing",
+    "overnight",
+    "overnightjs",
+    "js",
+    "new",
+    "app",
+    "express-ts",
+    "decorators",
+    "decorate",
+    "test",
+    "testing",
+    "routes",
+    "router",
+    "routing"
+  ],  
+  "preferGlobal": true,
+  "author": "Miguel Frias",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mianfrigo/express-typescript-generator/issues"
+  },
+  "homepage": "https://github.com/mianfrigo/express-typescript-generator.git"
+}
