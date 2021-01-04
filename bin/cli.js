@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 
-const {
-  getDest,
-  done,
-  expressGenTs,
-} = require('../lib/express-generator-typescript');
+const { done, getDest, expressGenTs } = require('../lib/express-generator');
+
 const boxen = require('boxen');
 
 (() => {
@@ -17,7 +14,7 @@ const boxen = require('boxen');
   );
   // Get the name of the new project
   let destination = getDest(process.argv[2]);
-  expressGenTs(destination, withAuth).then(() => {
+  expressGenTs(destination).then(() => {
     done();
   });
 })();

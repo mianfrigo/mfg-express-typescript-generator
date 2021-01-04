@@ -1,21 +1,16 @@
 {
-  "name": "express-typescript-draf",
-  "version": "1.0.1",
+  "name": "express-typescript-draf-aplha",
+  "version": "1.0.11",
   "description": "npm package to generate boilerplate node express application with typescript and webpack",
   "main": "bin/cli.js",
-  "script": {
-    "express-typescrtip-draf": "node bin/cli.js",
-    "express-generator": "node bin/cli.js",
-    "start": "node bin/cli.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "script": {},
   "bin": {
-    "express-typescrtip-draf": "node bin/cli.js",
-    "express-generator": "node bin/cli.js"
+    "express-typescrtip-draf": "bin/cli.js",
+    "express-generator": "bin/cli.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mianfrigo/express-typescript-draf.git"
+    "url": "https://github.com/mianfrigo/express-typescript-draf.git"
   },
   "keywords": [
     "express",
