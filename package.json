@@ -1,5 +1,5 @@
 {
-  "name": "@mianfrigo/express-typescript-draf",
+  "name": "express-typescript-draf",
   "version": "1.0.0",
   "description": "npm package to generate boilerplate node express application with typescript and webpack",
   "main": "bin/cli.js",
