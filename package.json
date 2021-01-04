@@ -1,5 +1,5 @@
 {
-  "name": "express-typescript-draf",
+  "name": "@mianfrigo/express-typescript-draf",
   "version": "1.0.0",
   "description": "npm package to generate boilerplate node express application with typescript and webpack",
   "main": "bin/cli.js",
@@ -55,5 +55,12 @@
     "fs-extra": "^9.0.1",
     "ncp": "^2.0.0",
     "ora": "^5.2.0"
+  },
+  "directories": {
+    "lib": "lib"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
   }
 }
