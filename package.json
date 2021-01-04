@@ -5,12 +5,12 @@
   "main": "bin/cli.js",
   "script": {},
   "bin": {
-    "express-typescript-generator": "bin/cli.js",
-    "express-generator": "bin/cli.js"
+    "mfg-express-typescript-generator": "bin/cli.js",
+    "mfg-express-generator": "bin/cli.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mianfrigo/express-typescript-draf.git"
+    "url": "https://github.com/mianfrigo/mfg-express-typescript-generator.git"
   },
   "keywords": [
     "express",
@@ -40,9 +40,9 @@
   "author": "Miguel Frias",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/mianfrigo/express-typescript-draf/issues"
+    "url": "https://github.com/mianfrigo/mfg-express-typescript-generator/issues"
   },
-  "homepage": "https://github.com/mianfrigo/express-typescript-draf.git",
+  "homepage": "https://github.com/mianfrigo/mfg-express-typescript-generator.git",
   "dependencies": {
     "boxen": "^5.0.0",
     "chalk": "^4.1.0",
