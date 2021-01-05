@@ -7,7 +7,7 @@ const boxen = require('boxen');
 
 (() => {
   console.log(
-    boxen('Express typescript draf', {
+    boxen('Express typescript generator', {
       borderColor: 'yellow',
       borderStyle: 'classic',
       align: 'left',
