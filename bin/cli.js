@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const chalk = require('chalk');
 
 const { done, getDest, expressGenTs } = require('../lib/express-generator');
 
@@ -13,8 +14,18 @@ const boxen = require('boxen');
     })
   );
   // Get the name of the new project
-  let destination = getDest(process.argv[2]);
-  expressGenTs(destination).then(() => {
+  const args = process.argv.slice(2);
+  if (args[0] === '--mongo-db') {
+    console.error(
+      chalk.red(
+        'project name most be follow by the params eg. "node-express --mongo-db"'
+      )
+    );
+    return;
+  }
+  let withMongo = args[1] && args[1] === '--mongo-db' ? true : false;
+  let destination = getDest(args[0]);
+  expressGenTs(destination, withMongo).then(() => {
     done();
   });
 })();

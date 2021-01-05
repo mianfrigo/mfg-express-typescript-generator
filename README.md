@@ -5,7 +5,7 @@
 ## What is it?
 
 Node express generator similar to [express-generator-typescript](https://github.com/seanpmaxwell/express-generator-typescript) module. In this case we use
-[Webpack](https://webpack.js.org/) to compile the typescript to Javascript, also implement [EsLint](https://eslint.org/) to follow
+[Webpack](https://www.npmjs.com/package/webpack) to compile the typescript to Javascript, also implement [EsLint](https://www.npmjs.com/package/eslint) to follow
 good practice and a clean code.
 
 ## Project example
@@ -13,9 +13,7 @@ good practice and a clean code.
 When you run _express-typescript-draf_, it sets up a very basic application with a single basic route.
 This is to show how route work with node and express.
 
-If you want an application ready to use with and db, you can pass the `--mongo-db` option and you will have an
-application which is ready to use mongoDb. The app is configured with production quality client-side security.
-I highly encourage to use this option.
+If you want an application ready to use with a db, you can pass the `--mongo-db` option and you will have an application which is ready to use mongoDb with [mongoose](hhttps://www.npmjs.com/package/mongoose). The app is configured with production quality client-side security. The `--mongo-db` option create a basic mongoose setup with `/user` as a first route, is implementing and full CRUD to show the use of mongoose. I highly encourage to use this option.
 
 ## Installation
 
@@ -25,13 +23,16 @@ $ npm install -g @mianfrigo/express-typescript-generator
 
 ## Quick Start
 
-The quickest way to get started is use npx and pass in the name of the project you want to create.
+The quickest way to get started is use `$ mfg-express-generator` and pass in the name of the project you want to create.
+
 If you don't specify a project name, _express-ts_ will be set up for you as default name.
 
 Create the app:
 
 ```bash
-$ mfg-express-generator "project name (default is express-ts)"
+$ mfg-express-generator "MY_PROJECT"
+or
+$ mfg-express-generator "MY_PROJECT" --mongo-db
 ```
 
 Start your @mianfrigo/express-typescript-generator app
