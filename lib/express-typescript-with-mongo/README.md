@@ -8,21 +8,6 @@ Node express generator similar to [express-generator-typescript](https://github.
 [Webpack](https://webpack.js.org/) to compile the typescript to Javascript, also implement [EsLint](https://eslint.org/) to follow
 good practice and a clean code.
 
-## Project example
-
-When you run _express-typescript-draf_, it sets up a very basic application with a single basic route.
-This is to show how route work with node and express.
-
-If you want an application ready to use with and db, you can pass the `--mongo-db` option and you will have an
-application which is ready to use mongoDb. The app is configured with production quality client-side security.
-I highly encourage to use this option.
-
-## Installation
-
-```bash
-$ npm install -g @mianfrigo/express-typescript-generator
-```
-
 ## Quick Start
 
 The quickest way to get started is use npx and pass in the name of the project you want to create.
@@ -53,7 +38,3 @@ During development, _express-generator-typescript_ uses `webpack` compile the ty
 and `nodemon` to restart the server when changes are detected.
 
 Happy coding
-
-## License
-
-[MIT](LICENSE)

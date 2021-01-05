@@ -1,0 +1,20 @@
+# dependencies
+/node_modules
+# images folder
+/images
+/dist
+/logs
+src/**/*.js
+src/routes/migrate.route.ts
+src/controllers/migrate.controller.ts
+
+# env variables
+.env
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/*
