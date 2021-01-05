@@ -23,7 +23,6 @@ const boxen = require('boxen');
   let withMongo = args[1] && args[1] === '--mongo-db' ? true : false;
   let destination = getDest(args[0]);
   const exist = await pathExist(destination);
-  console.log(exist);
   if (exist) {
     console.error(
       chalk.red(
