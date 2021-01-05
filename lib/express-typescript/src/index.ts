@@ -29,7 +29,7 @@ app.use(notFound);
 app.use(handleError);
 
 // connection to server
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 
 app.listen(port, () => {
   logger.info(`connected to port ${port}`);
