@@ -13,7 +13,7 @@ good practice and a clean code.
 When you run _@mianfrigo/express-typescript-generator_, it sets up a very basic application with a single basic route.
 This is to show how route work with node and express.
 
-If you want an application ready to use with a db, you can pass the `--mongo-db` option and you will have an application which is ready to use mongoDb with [mongoose](hhttps://www.npmjs.com/package/mongoose). The app is configured with production quality client-side security. The `--mongo-db` option create a basic mongoose setup with `/user` as a first route, is implementing and full CRUD to show the use of mongoose. I highly encourage to use this option.
+A small cli will guide you through a couple of option to setup you new project base on your needs. You can select and setup your routes using limiters or setup mongoDb with [mongoose](hhttps://www.npmjs.com/package/mongoose). The app is configured with production quality client-side security. The if you decide to use mongoDb it will generate a basic mongoose setup with `/user` as a first route, is implementing and full CRUD to show the use of mongoose. I highly encourage to use this option.
 
 ## Installation
 
@@ -31,8 +31,6 @@ Create the app:
 
 ```bash
 $ mfg-express-generator "MY_PROJECT"
-or
-$ mfg-express-generator "MY_PROJECT" --mongo-db
 ```
 
 Start your @mianfrigo/express-typescript-generator app
