@@ -50,8 +50,7 @@ $ cd "project name" && npm run dev
 
 ## Debugging
 
-During development, _@mianfrigo/express-typescript-generator_ uses `webpack` compile the typescript code to jascript
-and `nodemon` to restart the server when changes are detected.
+During development, _@mianfrigo/express-typescript-generator_ uses `webpack` compile the typescript code to jascript and `nodemon` to restart the server when changes are detected.
 
 Happy coding
 

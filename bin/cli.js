@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+
+const inquirer = require('inquirer');
+const questions = require('../lib/cli-question');
 const chalk = require('chalk');
 const {
   done,
@@ -14,7 +17,6 @@ const boxen = require('boxen');
   // Get the name of the new project
   const args = process.argv.slice(2);
   handleArgs(args);
-  let withMongo = args[1] && args[1] === '--mongo-db' ? true : false;
   let destination = getProjectPath(args[0]);
   const exist = await pathExist(destination);
   if (exist) {
@@ -25,15 +27,27 @@ const boxen = require('boxen');
     );
     return;
   }
-  console.log(
-    boxen('Express typescript generator', {
-      borderColor: 'yellow',
-      borderStyle: 'classic',
-      align: 'left',
-    })
-  );
+  inquirer
+    .prompt(questions)
+    .then(async (cliAnswers) => {
+      console.log('\n');
+      console.log(
+        boxen('Express typescript generator', {
+          borderColor: 'yellow',
+          borderStyle: 'classic',
+          align: 'left',
+        })
+      );
 
-  generateApp(destination, withMongo).then(() => {
-    done();
-  });
+      generateApp(destination, cliAnswers).then(() => {
+        done();
+      });
+    })
+    .catch((err) => {
+      if (err.isTtyError) {
+        process.exit();
+      } else {
+        console.log(err);
+      }
+    });
 })();
