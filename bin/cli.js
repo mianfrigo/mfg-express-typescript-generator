@@ -2,8 +2,8 @@
 const chalk = require('chalk');
 const {
   done,
-  getDest,
-  expressGenTs,
+  getProjectPath,
+  generateApp,
   pathExist,
 } = require('../lib/express-generator');
 const { handleArgs } = require('../lib/utilities');
@@ -15,7 +15,7 @@ const boxen = require('boxen');
   const args = process.argv.slice(2);
   handleArgs(args);
   let withMongo = args[1] && args[1] === '--mongo-db' ? true : false;
-  let destination = getDest(args[0]);
+  let destination = getProjectPath(args[0]);
   const exist = await pathExist(destination);
   if (exist) {
     console.error(
@@ -33,7 +33,7 @@ const boxen = require('boxen');
     })
   );
 
-  expressGenTs(destination, withMongo).then(() => {
+  generateApp(destination, withMongo).then(() => {
     done();
   });
 })();

@@ -10,7 +10,7 @@ good practice and a clean code.
 
 ## Project example
 
-When you run _express-typescript-draf_, it sets up a very basic application with a single basic route.
+When you run _@mianfrigo/express-typescript-generator_, it sets up a very basic application with a single basic route.
 This is to show how route work with node and express.
 
 If you want an application ready to use with a db, you can pass the `--mongo-db` option and you will have an application which is ready to use mongoDb with [mongoose](hhttps://www.npmjs.com/package/mongoose). The app is configured with production quality client-side security. The `--mongo-db` option create a basic mongoose setup with `/user` as a first route, is implementing and full CRUD to show the use of mongoose. I highly encourage to use this option.
@@ -50,7 +50,7 @@ $ cd "project name" && npm run dev
 
 ## Debugging
 
-During development, _express-generator-typescript_ uses `webpack` compile the typescript code to jascript
+During development, _@mianfrigo/express-typescript-generator_ uses `webpack` compile the typescript code to jascript
 and `nodemon` to restart the server when changes are detected.
 
 Happy coding
