@@ -2,7 +2,7 @@
 
 [Express](https://www.npmjs.com/package/express) with [TypeScript's](https://www.npmjs.com/package/typescript) application generator.
 
-<a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator" target="_blank"><img src="https://badgen.net/badge/npm/v1.1.3/blue" alt="NPM Version" /></a> <a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator" target="_blank"><img src="https://badgen.net/badge/license/MIT/green" alt="Package License" /></a>
+<a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator" target="_blank"><img src="https://badgen.net/badge/npm/v1.1.5/blue" alt="NPM Version" /></a> <a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator" target="_blank"><img src="https://badgen.net/badge/license/MIT/green" alt="Package License" /></a>
 
 ## What is it?
 
