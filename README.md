@@ -2,6 +2,8 @@
 
 [Express](https://www.npmjs.com/package/express) with [TypeScript's](https://www.npmjs.com/package/typescript) application generator.
 
+![npm-version](https://badgen.net/badge/npm/v1.1.2/blue) ![License](https://badgen.net/badge/license/MIT/green)
+
 ## What is it?
 
 Node express generator similar to [express-generator-typescript](https://github.com/seanpmaxwell/express-generator-typescript) module. In this case we use
@@ -30,6 +32,8 @@ If you don't specify a project name, _express-ts_ will be set up for you as defa
 Create the app:
 
 ```bash
+$ mfg-express-typescript-generator "MY_PROJECT"
+ or
 $ mfg-express-generator "MY_PROJECT"
 ```
 
