@@ -29,7 +29,7 @@ const boxen = require('boxen');
   }
   inquirer
     .prompt(questions)
-    .then(async (cliAnswers) => {
+    .then((cliAnswers) => {
       console.log('\n');
       console.log(
         boxen('Express typescript generator', {
