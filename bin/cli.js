@@ -3,13 +3,8 @@
 const inquirer = require('inquirer');
 const questions = require('../lib/cli-question');
 const chalk = require('chalk');
-const {
-  done,
-  getProjectPath,
-  generateApp,
-  pathExist,
-} = require('../lib/express-generator');
-const { handleArgs } = require('../lib/utilities');
+const { done, generateApp } = require('../lib/express-generator');
+const { handleArgs, getProjectPath, pathExist } = require('../lib/utilities');
 
 const boxen = require('boxen');
 
