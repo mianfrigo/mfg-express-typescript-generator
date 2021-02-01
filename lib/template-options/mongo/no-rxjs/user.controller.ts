@@ -8,71 +8,73 @@ export default class UserController {
     autoBind(this);
   }
 
-  createUsers(req: Request, res: Response, next: NextFunction) {
-    const newUser = new User({ ...req.body });
-    newUser
-      .save()
-      .then((user: any) => {
-        res.status(200).json(user);
-      })
-      .catch((err: any) => {
-        res.status(err.status);
-        const error = new Error('Error');
-        next(error);
-      });
+  async createUsers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const newUser = new User({ ...req.body });
+      const userSaved = await newUser.save();
+      res.status(200).json(userSaved);
+    } catch (err) {
+      res.status(err.status ?? 500);
+      const error = new Error('Error');
+      next(error);
+    }
   }
 
-  getUsers(req: Request, res: Response, next: NextFunction) {
-    User.find()
-      .then((users: any) => {
-        res.status(200).json(users);
-      })
-      .catch((err: any) => {
-        res.status(err.status);
-        const error = new Error('Error');
-        next(error);
-      });
+  async getUsers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const users = await User.find();
+      res.status(200).json(users);
+    } catch (err) {
+      res.status(err.status ?? 500);
+      const error = new Error('Error');
+      next(error);
+    }
   }
 
-  getSingleUser(req: Request, res: Response, next: NextFunction) {
+  async getSingleUser(req: Request, res: Response, next: NextFunction) {
     const { id } = req.params;
-    User.findOne({ _id: id })
-      .then((user: any) => {
+    try {
+      const user = await User.findOne({ _id: id });
+      if (user) {
         res.status(200).json(user);
-      })
-      .catch((err: any) => {
-        res.status(err.status);
-        const error = new Error('Error');
-        next(error);
-      });
+        return;
+      }
+      res.status(404);
+      const error = new Error('Not Found');
+      next(error);
+    } catch (err) {
+      res.status(err.status ?? 500);
+      const error = new Error('Error');
+      next(error);
+    }
   }
 
-  removeUser(req: Request, res: Response, next: NextFunction) {
+  async removeUser(req: Request, res: Response, next: NextFunction) {
     const { id } = req.params;
-    User.deleteOne({ _id: id })
-      .then(() => {
-        res.status(200).json({
-          message: `User ${id} successfully deleted`,
-        });
-      })
-      .catch((err: any) => {
-        res.status(err.status);
-        const error = new Error('Error');
-        next(error);
+    try {
+      const userDeleted = await User.deleteOne({ _id: id });
+      res.status(200).json({
+        message: `User ${id} successfully deleted`,
       });
+    } catch (err) {
+      res.status(err.status ?? 500);
+      const error = new Error('Error');
+      next(error);
+    }
   }
 
-  updateUser(req: Request, res: Response, next: NextFunction) {
+  async updateUser(req: Request, res: Response, next: NextFunction) {
     const { id } = req.params;
     const user = { ...req.body };
-    User.findOneAndUpdate({ _id: id }, user, { new: true })
-      .then((updated: any) => {
-        res.status(200).json(updated);
-      })
-      .catch((err: any) => {
-        res.status(err.status);
-        const error = new Error('Error');
-        next(error);
+    try {
+      const updated = await User.findOneAndUpdate({ _id: id }, user, {
+        new: true,
       });
+      res.status(200).json(updated);
+    } catch (err) {
+      res.status(err.status ?? 0);
+      const error = new Error('Error');
+      next(error);
+    }
   }
 }
