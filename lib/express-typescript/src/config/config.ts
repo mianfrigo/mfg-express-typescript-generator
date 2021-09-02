@@ -1,18 +1,9 @@
-import cors from 'cors';
+import { CorsOptions } from 'cors';
 import { Request, Response } from 'express';
 import logger from './logger.config';
 
-const corsWhitelist = (origin: string, callback: Function) => {
-  const whiteList = process.env.CORS_WHITE_LIST.split(',');
-  console.log(whiteList);
-  if (whiteList.indexOf(origin) !== -1) {
-    callback(null, true);
-    return;
-  }
-  callback(new Error(`Origin not allowed by CORS: ${origin}`));
-};
-
-export const corsOptions: cors.CorsOptions = {
+/* Cors Config  */
+const corsOptions: CorsOptions = {
   allowedHeaders: [
     'Origin',
     'X-Requested-With',
@@ -23,8 +14,21 @@ export const corsOptions: cors.CorsOptions = {
   ],
   credentials: true,
   methods: 'GET,HEAD,OPTIONS,PUT,PATCH,POST,DELETE',
-  origin: '*', // use the method corsWhitelist() to allow specifit origins
   preflightContinue: false,
+};
+
+export const corsOptionsWhiteList = (request: Request, callback: Function) => {
+  const whiteList = ['http://localhost:4200', 'http://localhost:5000'];
+  const origin = request.header('origin')
+    ? request.header('origin')
+    : request.header('referer').slice(0, request.header('referer').length - 1);
+  if (whiteList.indexOf(origin) !== -1) {
+    corsOptions['origin'] = true;
+    callback(null, corsOptions);
+    return;
+  }
+  corsOptions['origin'] = false;
+  callback(new Error(`Origin not allowed by CORS: ${origin}`), corsOptions);
 };
 
 export const morganConfig = (tokens: any, req: Request, res: Response) => {

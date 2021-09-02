@@ -8,8 +8,6 @@ export default class MongoDb {
     mongoose
       .connect('YOUR_MONGO_STRING_CONNECTION', {
         useNewUrlParser: true,
-        useCreateIndex: true,
-        useFindAndModify: false,
       })
       .then(() => {
         logger.info('MongoDb connected');
