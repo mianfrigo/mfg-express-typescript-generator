@@ -44,6 +44,10 @@ in development mode at `http://localhost:3000/`:
 $ cd "project name" && npm run dev
 ```
 
+The project implement a white list of host for the CORS configuration that you can easy change/update on the `config/config.ts` file.
+
+If you decide to implement mongoDb as your Database, you would need to change the mongoDb connection string in the `.env` file before running the `npm run dev` command. The CLI will generate some routes for you have a good start.
+
 ## Available commands for the server.
 
 - Run the production build: `npm start`.

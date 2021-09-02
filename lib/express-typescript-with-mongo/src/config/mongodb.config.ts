@@ -6,7 +6,7 @@ export default class MongoDb {
 
   connect() {
     mongoose
-      .connect('YOUR_MONGO_STRING_CONNECTION', {
+      .connect(process.env.MONGO_DB, {
         useNewUrlParser: true,
       })
       .then(() => {

@@ -32,7 +32,7 @@ export default class AuthController {
         auth_id: user._id,
         email: user.email,
       };
-      const token = jwt.sign(userToken, process.env.SECRET_KEY, {
+      const token = jwt.sign(userToken, 'process.env.SECRET_KEY', {
         expiresIn: '24h',
       });
       const decoded: any = jwt.decode(token);
