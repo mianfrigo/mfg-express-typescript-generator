@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { corsOptions, morganConfig } from './config/config';
+import { corsOptionsWhiteList, morganConfig } from './config/config';
 import logger from './config/logger.config';
 import { handleError, notFound } from './middleware/errorHandler';
 import baseRoutes from './routes';
@@ -17,7 +17,7 @@ const app = express();
 // Basic middlewares
 app.use(morgan(morganConfig));
 app.use(helmet());
-app.use(cors(corsOptions));
+app.use(cors(corsOptionsWhiteList));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
