@@ -18,10 +18,10 @@ const corsOptions: CorsOptions = {
 };
 
 export const corsOptionsWhiteList = (request: Request, callback: Function) => {
-  const whiteList = ['http://localhost:4200', 'http://localhost:5000'];
+  const whiteList = ['localhost:4200', 'localhost:3000'];
   const origin = request.header('origin')
     ? request.header('origin')
-    : request.header('referer').slice(0, request.header('referer').length - 1);
+    : request.header('host');
   if (whiteList.indexOf(origin) !== -1) {
     corsOptions['origin'] = true;
     callback(null, corsOptions);
