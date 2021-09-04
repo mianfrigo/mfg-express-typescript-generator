@@ -22,7 +22,7 @@ export const corsOptionsWhiteList = (request: Request, callback: Function) => {
   const origin = request.header('origin')
     ? request.header('origin')
     : request.header('host');
-  if (whiteList.indexOf(origin) !== -1) {
+  if (origin && whiteList.some((host: string) => origin.includes(host))) {
     corsOptions['origin'] = true;
     callback(null, corsOptions);
     return;
