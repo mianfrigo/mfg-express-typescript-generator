@@ -1,6 +1,7 @@
 import autoBind from 'auto-bind';
 import { NextFunction, Request, Response } from 'express';
 import UserModel from '../models/user.schema';
+import createHttpError from 'http-errors';
 
 const User = UserModel;
 export default class UserController {
@@ -14,9 +15,7 @@ export default class UserController {
       const userSaved = await newUser.save();
       res.status(200).json(userSaved);
     } catch (err) {
-      res.status(err.status ?? 500);
-      const error = new Error('Error');
-      next(error);
+      next(err);
     }
   }
 
@@ -25,9 +24,7 @@ export default class UserController {
       const users = await User.find();
       res.status(200).json(users);
     } catch (err) {
-      res.status(err.status ?? 500);
-      const error = new Error('Error');
-      next(error);
+      next(err);
     }
   }
 
@@ -40,12 +37,10 @@ export default class UserController {
         return;
       }
       res.status(404);
-      const error = new Error('Not Found');
+      const error = new createHttpError.NotFound();
       next(error);
     } catch (err) {
-      res.status(err.status ?? 500);
-      const error = new Error('Error');
-      next(error);
+      next(err);
     }
   }
 
@@ -57,9 +52,7 @@ export default class UserController {
         message: `User ${id} successfully deleted`,
       });
     } catch (err) {
-      res.status(err.status ?? 500);
-      const error = new Error('Error');
-      next(error);
+      next(err);
     }
   }
 
@@ -72,9 +65,7 @@ export default class UserController {
       });
       res.status(200).json(updated);
     } catch (err) {
-      res.status(err.status ?? 0);
-      const error = new Error('Error');
-      next(error);
+      next(err);
     }
   }
 }

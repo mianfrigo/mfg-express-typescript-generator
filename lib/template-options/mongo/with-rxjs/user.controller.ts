@@ -1,8 +1,9 @@
 import autoBind from 'auto-bind';
 import { NextFunction, Request, Response } from 'express';
 import UserModel from '../models/user.schema';
-import { forkJoin, from, of, throwError } from 'rxjs';
+import { from, throwError } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
+import createHttpError from 'http-errors';
 
 const User = UserModel;
 export default class UserController {
@@ -17,9 +18,7 @@ export default class UserController {
         res.status(200).json(user);
       },
       (err) => {
-        res.status(err.status);
-        const error = new Error('Error');
-        next(error);
+        next(err);
       }
     );
   }
@@ -30,9 +29,7 @@ export default class UserController {
         res.status(200).json(users);
       },
       (err) => {
-        res.status(err.status);
-        const error = new Error('Error');
-        next(error);
+        next(err);
       }
     );
   }
@@ -44,9 +41,7 @@ export default class UserController {
         res.status(200).json(user);
       },
       (err) => {
-        res.status(err.status);
-        const error = new Error('Error');
-        next(error);
+        next(err);
       }
     );
   }
@@ -60,9 +55,7 @@ export default class UserController {
         });
       },
       (err) => {
-        res.status(err.status);
-        const error = new Error('Error');
-        next(error);
+        next(err);
       }
     );
   }
@@ -74,7 +67,7 @@ export default class UserController {
       .pipe(
         switchMap((user) => {
           if (!user) {
-            return throwError({ status: 404 });
+            return throwError(() => new createHttpError.NotFound());
           }
           return from(User.updateOne({ _id: id }, updated, { new: true }));
         })
@@ -84,9 +77,7 @@ export default class UserController {
           res.status(200).json(user);
         },
         (err) => {
-          res.status(err.status);
-          const error = new Error('Error');
-          next(error);
+          next(err);
         }
       );
   }

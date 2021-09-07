@@ -5,6 +5,7 @@ import { forkJoin, from, of, throwError } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import UserModel from '../models/user.schema';
 import bcrypt from 'bcryptjs';
+import createHttpError from 'http-errors';
 
 const User = UserModel;
 
@@ -19,7 +20,7 @@ export default class AuthController {
       .pipe(
         switchMap((user: any) => {
           if (!user) {
-            return throwError(() => new Error(JSON.stringify({ status: 404 })));
+            return throwError(() => new createHttpError.NotFound());
           }
           return forkJoin([
             of(user),
@@ -31,8 +32,7 @@ export default class AuthController {
         next: ([user, result]) => {
           if (!result) {
             res.status(401);
-            const error = new Error('Wrong password.');
-            next(error);
+            next(new createHttpError.Forbidden('Wrong password'));
             return;
           }
           const userToken = {
@@ -52,9 +52,7 @@ export default class AuthController {
           res.status(200).json(authToken);
         },
         error: (err) => {
-          res.status(500);
-          const error = new Error('Internal server Error');
-          next(error);
+          next(err);
         },
       });
   }

@@ -1,14 +1,15 @@
 import { NextFunction, Request, Response } from 'express';
 import logger from '../config/logger.config';
+import createError, { HttpError } from 'http-errors';
 
 export const notFound = (req: Request, res: Response, next: NextFunction) => {
   res.status(404);
-  const error: any = new Error(`Not found - ${req.originalUrl}`);
+  const error: any = new createError.NotFound();
   next(error);
 };
 
 export const handleError = (
-  err: any,
+  err: HttpError,
   req: Request,
   res: Response,
   next: NextFunction
@@ -22,5 +23,5 @@ export const handleError = (
   logger.error(
     `statusCode: ${jsonError.error.statusCode}; statusText: ${jsonError.error.message}; stacks: ${err.stack};`
   );
-  res.status(res.statusCode || 500).json(jsonError);
+  res.status(jsonError.error.statusCode).json(jsonError);
 };

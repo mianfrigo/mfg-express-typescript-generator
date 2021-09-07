@@ -3,6 +3,7 @@ import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import UserModel from '../models/user.schema';
+import createHttpError from 'http-errors';
 
 const User = UserModel;
 
@@ -17,14 +18,14 @@ export default class AuthController {
       const user = await User.findOne({ email: email });
       if (!user) {
         res.status(404);
-        const error = new Error('User not found.');
+        const error = new createHttpError.NotFound();
         next(error);
         return;
       }
       const passwordMatch = await bcrypt.compare(password, user.password);
       if (!passwordMatch) {
         res.status(401);
-        const error = new Error('Wrong password.');
+        const error = new createHttpError.Forbidden('Wrong password');
         next(error);
         return;
       }
@@ -44,9 +45,7 @@ export default class AuthController {
 
       res.status(200).json(authToken);
     } catch (err) {
-      res.status(err.status ?? 500);
-      const error = new Error('Internal server error.');
-      next(error);
+      next(err);
     }
   }
 }
