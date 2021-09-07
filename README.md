@@ -2,7 +2,7 @@
 
 [Express](https://www.npmjs.com/package/express) with [TypeScript's](https://www.npmjs.com/package/typescript) application generator.
 
-<a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator" target="_blank"><img src="https://badgen.net/badge/npm/v1.3.5/blue" alt="NPM Version" /></a> <a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator" target="_blank"><img src="https://badgen.net/badge/license/MIT/green" alt="Package License" /></a>
+<a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator" target="_blank"><img src="https://badgen.net/badge/npm/v1.3.6/blue" alt="NPM Version" /></a> <a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator" target="_blank"><img src="https://badgen.net/badge/license/MIT/green" alt="Package License" /></a>
 
 ## What is it?
 
@@ -56,7 +56,7 @@ If you decide to implement mongoDb as your Database, you would need to change th
 
 ## Debugging
 
-During development, _@mianfrigo/express-typescript-generator_ uses `webpack` compile the typescript code to jascript and `nodemon` to restart the server when changes are detected.
+During development, _@mianfrigo/express-typescript-generator_ uses `webpack` compile the typescript code to javascript and `nodemon` to restart the server when changes are detected.
 
 Happy coding
 
