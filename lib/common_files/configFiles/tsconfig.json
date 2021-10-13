@@ -13,6 +13,7 @@
     "allowSyntheticDefaultImports": true,
     "strictFunctionTypes": true,
     "moduleResolution": "node",
+    "experimentalDecorators": true,
     // "baseUrl": "./",
     "esModuleInterop": true,
     "skipLibCheck": true,
