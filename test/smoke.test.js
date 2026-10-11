@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -375,4 +377,48 @@ test('--test adds vitest + supertest, a test script and an example test', () => 
   const off = gen('test-off', ['--yes', '--no-install']);
   assert.equal(pkg(off.dir).scripts.test, undefined);
   assert.ok(!has(off.dir, 'test'));
+});
+
+const hasGit = spawnSync('git', ['--version']).status === 0;
+
+test('invalid project name is rejected before anything is written', () => {
+  const { dir, r } = gen('Bad Name', ['--yes', '--no-install']);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /name/i);
+  assert.ok(!has(dir, 'package.json'));
+});
+
+test('git: initialised by default, skipped by --no-git', { skip: !hasGit }, () => {
+  const on = gen('git-on', ['--yes', '--no-install']);
+  assert.ok(has(on.dir, '.git'));
+  const off = gen('git-off', ['--yes', '--no-install', '--no-git']);
+  assert.ok(!has(off.dir, '.git'));
+});
+
+test('git: not nested inside an existing repo unless --git', { skip: !hasGit }, () => {
+  const parent = path.join(tmp, 'outer');
+  mkdirSync(path.join(parent, '.git'), { recursive: true });
+  const run1 = spawnSync(process.execPath, [bin, 'inner', '--yes', '--no-install'], { encoding: 'utf8', cwd: parent });
+  assert.equal(run1.status, 0, run1.stderr);
+  assert.ok(!has(path.join(parent, 'inner'), '.git'), 'no nested repo');
+  const run2 = spawnSync(process.execPath, [bin, 'inner2', '--yes', '--no-install', '--git'], { encoding: 'utf8', cwd: parent });
+  assert.equal(run2.status, 0, run2.stderr);
+  assert.ok(has(path.join(parent, 'inner2'), '.git'), '--git forces');
+});
+
+test('--here scaffolds into an empty current directory only', () => {
+  const empty = path.join(tmp, 'here-empty');
+  mkdirSync(empty);
+  const ok = spawnSync(process.execPath, [bin, '--here', '--yes', '--no-install'], { encoding: 'utf8', cwd: empty });
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.ok(has(empty, 'src/index.ts'));
+  assert.equal(pkg(empty).name, 'here-empty');
+
+  const full = path.join(tmp, 'here-full');
+  mkdirSync(full);
+  writeFileSync(path.join(full, 'keep.txt'), 'x');
+  const bad = spawnSync(process.execPath, [bin, '--here', '--yes', '--no-install'], { encoding: 'utf8', cwd: full });
+  assert.equal(bad.status, 1);
+  assert.match(bad.stderr, /empty/);
+  assert.ok(!has(full, 'package.json'));
 });

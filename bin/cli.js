@@ -1,9 +1,14 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
 import { generateApp } from '../lib/generate.js';
-import { createAsk, parseCli, resolveOptions } from '../lib/options.js';
+import {
+  createAsk,
+  parseCli,
+  resolveOptions,
+  validateName,
+} from '../lib/options.js';
 
 const pkg = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8')
@@ -15,8 +20,18 @@ try {
     console.log(`express-typescript-generator v${pkg.version}`);
     process.exit(0);
   }
-  const dest = path.resolve(positionals[0] ?? 'express-ts');
-  if (existsSync(dest)) {
+  if (values.here && positionals.length) {
+    throw new Error('--here cannot be combined with a project name');
+  }
+  const dest = values.here
+    ? process.cwd()
+    : path.resolve(positionals[0] ?? 'express-ts');
+  validateName(path.basename(dest));
+  if (values.here) {
+    if (readdirSync(dest).some((f) => f !== '.git')) {
+      throw new Error(`${dest} is not empty. --here needs an empty directory.`);
+    }
+  } else if (existsSync(dest)) {
     throw new Error(`${dest} already exists. Pick another name.`);
   }
   const ask = !values.yes && process.stdin.isTTY ? createAsk() : undefined;
@@ -27,9 +42,12 @@ try {
   await generateApp(dest, options);
 
   const run = options.pm === 'npm' ? 'npm run' : options.pm;
+  const cd = values.here
+    ? ''
+    : `
+  cd ${path.relative(process.cwd(), dest)}`;
   console.log(`
-Done. Next:
-  cd ${path.relative(process.cwd(), dest) || '.'}
+Done. Next:${cd}
   ${run} dev     start dev server (tsx watch)
   ${run} build   compile to dist/
   ${options.pm} start   run compiled server`);

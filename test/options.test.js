@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCli, resolveOptions } from '../lib/options.js';
+import { detectPm, parseCli, resolveOptions, validateName } from '../lib/options.js';
 
-const run = (argv, ask) => resolveOptions(parseCli(argv).values, ask);
+const run = (argv, ask, env = {}) =>
+  resolveOptions(parseCli(argv).values, ask, env);
 const never = () => assert.fail('must not prompt');
 
 test('flags set every option without prompting', async () => {
@@ -17,8 +18,12 @@ test('flags set every option without prompting', async () => {
     rxjs: true,
     pm: 'pnpm',
     install: false,
+    git: 'auto',
+    here: false,
     docker: false,
     test: false,
+    git: 'auto',
+    here: false,
   });
 });
 
@@ -33,6 +38,8 @@ test('--yes never prompts and defaults every option to false', async () => {
     install: true,
     docker: false,
     test: false,
+    git: 'auto',
+    here: false,
   });
 });
 
@@ -91,4 +98,36 @@ test('--test is flag-only: set by flag, never prompted', async () => {
   };
   assert.equal((await run(['--test'], ask)).test, true);
   assert.equal((await run([], ask)).test, false);
+});
+
+test('--git forces, --no-git disables, default is auto', async () => {
+  assert.equal((await run(['--git'])).git, true);
+  assert.equal((await run(['--no-git'])).git, false);
+  assert.equal((await run([])).git, 'auto');
+  assert.throws(() => parseCli(['--git', '--no-git']), /--git/);
+});
+
+test('package manager comes from --pm, else the invoking user agent, else npm', async () => {
+  assert.equal(detectPm('pnpm/9.1.0 npm/? node/v22.0.0 win32 x64'), 'pnpm');
+  assert.equal(detectPm('yarn/1.22.19 npm/? node/v20.0.0'), 'yarn');
+  assert.equal(detectPm('npm/10.2.0 node/v22.0.0'), 'npm');
+  assert.equal(detectPm('bun/1.0.0'), undefined);
+  assert.equal(detectPm(undefined), undefined);
+  const ua = { npm_config_user_agent: 'pnpm/9.1.0 node/v22' };
+  assert.equal((await run([], undefined, ua)).pm, 'pnpm');
+  assert.equal((await run(['--pm', 'yarn'], undefined, ua)).pm, 'yarn');
+  assert.equal((await run([], undefined, {})).pm, 'npm');
+});
+
+test('validateName follows npm package-name rules', () => {
+  for (const ok of ['express-ts', 'my.app', 'a_b', 'app2']) {
+    assert.doesNotThrow(() => validateName(ok), ok);
+  }
+  for (const bad of ['My App', 'MyApp', '.hidden', '_x', '-x', 'a/b', '', 'x'.repeat(215)]) {
+    assert.throws(() => validateName(bad), /name/i, bad);
+  }
+});
+
+test('--here is a plain boolean flag', async () => {
+  assert.equal((await run(['--here'])).here, true);
 });
