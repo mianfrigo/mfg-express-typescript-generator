@@ -23,6 +23,7 @@ Without flags you get a few yes/no prompts. Skip them with flags:
 | `--mongo` | Add MongoDB with mongoose and a `/user` CRUD route |
 | `--auth` | Add `POST /api/v1/auth/register` and `POST /api/v1/auth` (JWT login), and require a `Bearer` token on `/api/v1/user`; needs `--mongo`; writes a random `SECRET_KEY` to `.env` |
 | `--rxjs` | Use rxjs instead of promises in controllers (needs `--mongo`) |
+| `--docker` | Add a multi-stage `Dockerfile` and `.dockerignore` (run with `docker run --env-file .env`) |
 | `--pm npm\|pnpm\|yarn` | Package manager for install (default `npm`) |
 | `--no-install` | Skip dependency install |
 | `-v, --version` | Print version |

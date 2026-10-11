@@ -337,3 +337,17 @@ test('auth middleware fails at boot without SECRET_KEY', () => {
   assert.ok(m.includes('SECRET_KEY is not set'));
   assert.ok(m.includes("algorithms: ['HS256']"));
 });
+
+test('--docker adds Dockerfile and .dockerignore; absent otherwise', () => {
+  const on = gen('dock-on', ['--yes', '--no-install', '--docker']);
+  assert.equal(on.r.status, 0, on.r.stderr);
+  const df = read(on.dir, 'Dockerfile');
+  assert.ok(df.includes('AS build') && df.includes('USER node'));
+  assert.ok(df.includes('npm run build'));
+  const di = read(on.dir, '.dockerignore');
+  for (const p of ['.env', 'node_modules', 'dist', 'logs', '.git']) {
+    assert.match(di, new RegExp('^' + p.replace('.', '\.') + '$', 'm'));
+  }
+  const off = gen('dock-off', ['--yes', '--no-install']);
+  assert.ok(!has(off.dir, 'Dockerfile') && !has(off.dir, '.dockerignore'));
+});
