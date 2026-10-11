@@ -13,7 +13,7 @@ test('flags set every option without prompting', async () => {
   );
   assert.deepEqual(o, {
     limiter: true,
-    mongo: true,
+    db: 'mongo',
     auth: true,
     rxjs: true,
     pm: 'pnpm',
@@ -35,7 +35,7 @@ test('--yes never prompts and defaults every option to false', async () => {
   const o = await run(['--yes'], never);
   assert.deepEqual(o, {
     limiter: false,
-    mongo: false,
+    db: null,
     auth: false,
     rxjs: false,
     pm: 'npm',
@@ -51,7 +51,7 @@ test('--yes never prompts and defaults every option to false', async () => {
 
 test('no ask function and no flags falls back to defaults', async () => {
   const o = await run([], undefined);
-  assert.equal(o.mongo, false);
+  assert.equal(o.db, null);
 });
 
 test('prompts fill unflagged options; mongo-only questions skipped when mongo is no', async () => {
@@ -62,7 +62,7 @@ test('prompts fill unflagged options; mongo-only questions skipped when mongo is
   };
   const o = await run([], ask);
   assert.equal(o.limiter, true);
-  assert.equal(o.mongo, false);
+  assert.equal(o.db, null);
   assert.equal(asked.length, 2); // limiter + mongo only
 });
 
@@ -74,12 +74,12 @@ test('auth/rxjs questions asked when mongo answered yes', async () => {
   };
   const o = await run([], ask);
   assert.equal(asked.length, 4);
-  assert.equal(o.auth && o.rxjs && o.mongo && o.limiter, true);
+  assert.equal(o.auth && o.rxjs && o.db === 'mongo' && o.limiter, true);
 });
 
 test('--auth or --rxjs without --mongo is rejected', async () => {
-  await assert.rejects(run(['--auth'], undefined), /require --mongo/);
-  await assert.rejects(run(['--rxjs'], undefined), /require --mongo/);
+  await assert.rejects(run(['--auth'], undefined), /require a database/);
+  await assert.rejects(run(['--rxjs'], undefined), /require a database/);
 });
 
 test('unknown --pm is rejected', () => {
