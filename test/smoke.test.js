@@ -187,3 +187,38 @@ for (const [name, flags] of Object.entries(MATRIX)) {
     }
   );
 }
+
+test('error handler hides internals on 5xx and duplicate-key', () => {
+  const { dir, r } = gen('errs', ['--yes', '--no-install', '--mongo']);
+  assert.equal(r.status, 0, r.stderr);
+  const h = read(dir, 'src/middleware/errorHandler.ts');
+  assert.ok(h.includes('statusCode >= 500'), 'generic message for 5xx');
+  assert.ok(h.includes("'Internal Server Error'"));
+  assert.ok(h.includes('statusCode === 409'), 'fixed message for duplicate key');
+});
+
+test('cors allow-list matches exact origins and never errors', () => {
+  const { dir, r } = gen('cors', ['--yes', '--no-install']);
+  assert.equal(r.status, 0, r.stderr);
+  const c = read(dir, 'src/config/config.ts');
+  assert.ok(c.includes('allowed.includes(origin)'));
+  assert.ok(!c.includes('origin.includes(host)'), 'no substring matching');
+  assert.ok(!c.includes("header('host')"), 'no Host fallback');
+  assert.ok(!c.includes('new Error('), 'rejection must not become a 500');
+});
+
+for (const [name, flags] of [
+  ['auth-promise', ['--mongo', '--auth']],
+  ['auth-rxjs', ['--mongo', '--auth', '--rxjs']],
+]) {
+  test(`${name}: register route, hashed password, dummy hash compare`, () => {
+    const { dir, r } = gen(name, ['--yes', '--no-install', ...flags]);
+    assert.equal(r.status, 0, r.stderr);
+    const ctl = read(dir, 'src/controllers/auth.controller.ts');
+    assert.ok(read(dir, 'src/routes/auth.route.ts').includes("'/register'"));
+    assert.ok(ctl.includes('registerUser'));
+    assert.ok(ctl.includes('bcrypt.hash('));
+    assert.ok(ctl.includes('DUMMY_HASH'));
+    assert.ok(!ctl.includes("?? ''"), 'compare must not short-circuit on empty hash');
+  });
+}

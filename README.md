@@ -21,7 +21,7 @@ Without flags you get a few yes/no prompts. Skip them with flags:
 | `-y, --yes` | No prompts; unset options default to off |
 | `--limiter` | Add `express-rate-limit` to routes |
 | `--mongo` | Add MongoDB with mongoose and a `/user` CRUD route |
-| `--auth` | Add JWT login route (needs `--mongo`); writes a random `SECRET_KEY` to `.env` |
+| `--auth` | Add `POST /api/v1/auth/register` and `POST /api/v1/auth` (JWT login); needs `--mongo`; writes a random `SECRET_KEY` to `.env` |
 | `--rxjs` | Use rxjs instead of promises in controllers (needs `--mongo`) |
 | `--pm npm\|pnpm\|yarn` | Package manager for install (default `npm`) |
 | `--no-install` | Skip dependency install |

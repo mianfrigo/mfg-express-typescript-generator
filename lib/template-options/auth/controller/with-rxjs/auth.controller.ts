@@ -5,7 +5,46 @@ import jwt from 'jsonwebtoken';
 import { from, map, switchMap } from 'rxjs';
 import UserModel from '../models/user.schema';
 
+// compared when the user does not exist, so both failures cost one bcrypt round
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
+
 export default class AuthController {
+  registerUser = (req: Request, res: Response, next: NextFunction) => {
+    const { firstName, lastName, email, password } = req.body ?? {};
+    if (
+      [firstName, lastName, email, password].some((v) => typeof v !== 'string')
+    ) {
+      next(
+        new createHttpError.BadRequest(
+          'firstName, lastName, email and password are required'
+        )
+      );
+      return;
+    }
+    if (password.length < 8) {
+      next(
+        new createHttpError.BadRequest('password must be at least 8 characters')
+      );
+      return;
+    }
+    from(bcrypt.hash(password, 10))
+      .pipe(
+        switchMap((hash) =>
+          from(
+            UserModel.create({ firstName, lastName, email, password: hash })
+          )
+        ),
+        map((user) => {
+          const { password: _hash, ...created } = user.toObject();
+          return created;
+        })
+      )
+      .subscribe({
+        next: (body) => res.status(201).json(body),
+        error: next,
+      });
+  };
+
   authUser = (req: Request, res: Response, next: NextFunction) => {
     const { email, password } = req.body ?? {};
     if (typeof email !== 'string' || typeof password !== 'string') {
@@ -21,8 +60,8 @@ export default class AuthController {
     from(UserModel.findOne({ email }).select('+password'))
       .pipe(
         switchMap((user) =>
-          // compare against '' when user is missing: same failure path
-          from(bcrypt.compare(password, user?.password ?? '')).pipe(
+          // always run one bcrypt compare so response time does not reveal valid emails
+          from(bcrypt.compare(password, user?.password ?? DUMMY_HASH)).pipe(
             map((ok) => {
               if (!user || !ok) {
                 throw new createHttpError.Unauthorized('Invalid credentials');

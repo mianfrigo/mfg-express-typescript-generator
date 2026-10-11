@@ -23,5 +23,12 @@ export const handleError = (
   logger.error(
     `statusCode: ${statusCode}; message: ${err.message}; stack: ${err.stack};`
   );
-  res.status(statusCode).json({ error: { statusCode, message: err.message } });
+  // never echo internals (db names, stack hints) for server errors or duplicate keys
+  const message =
+    statusCode >= 500
+      ? 'Internal Server Error'
+      : statusCode === 409
+        ? 'Resource already exists'
+        : err.message;
+  res.status(statusCode).json({ error: { statusCode, message } });
 };

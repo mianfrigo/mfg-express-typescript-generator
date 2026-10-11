@@ -19,19 +19,18 @@ const corsOptions: CorsOptions = {
   preflightContinue: false,
 };
 
+const allowed = ['http://localhost:4200', 'http://localhost:3000'];
+
+// Exact origin match. Requests without an Origin header (curl, server-to-server,
+// same-origin) are served; they just get no CORS headers.
 export const corsOptionsWhiteList = (
   request: Request,
   callback: (err: Error | null, options?: CorsOptions) => void
 ) => {
-  const whiteList = ['localhost:4200', 'localhost:3000'];
-  const origin = request.header('origin') ?? request.header('host');
-  if (origin && whiteList.some((host) => origin.includes(host))) {
-    callback(null, { ...corsOptions, origin: true });
-    return;
-  }
-  callback(new Error(`Origin not allowed by CORS: ${origin}`), {
+  const origin = request.header('origin');
+  callback(null, {
     ...corsOptions,
-    origin: false,
+    origin: origin !== undefined && allowed.includes(origin),
   });
 };
 
