@@ -156,3 +156,34 @@ test('templates avoid removed/unsafe patterns', () => {
   assert.ok(ts.includes('11000'), 'duplicate key must map to 409');
   assert.ok(ts.includes('limit: 100'), 'rate-limit v8 option name');
 });
+
+const MATRIX = {
+  'full-base': [],
+  'full-limiter': ['--limiter'],
+  'full-mongo': ['--mongo'],
+  'full-auth': ['--mongo', '--auth'],
+  'full-rxjs': ['--mongo', '--rxjs'],
+  'full-all': ['--mongo', '--auth', '--rxjs', '--limiter'],
+};
+
+const npm = (args, cwd) => {
+  const r = spawnSync('npm', args, {
+    cwd,
+    encoding: 'utf8',
+    shell: process.platform === 'win32',
+  });
+  assert.equal(r.status, 0, `npm ${args.join(' ')}\n${r.stdout}\n${r.stderr}`);
+};
+
+for (const [name, flags] of Object.entries(MATRIX)) {
+  test(
+    `FULL: ${name} installs, builds, lints`,
+    { skip: !process.env.FULL, timeout: 600_000 },
+    () => {
+      const { dir, r } = gen(name, ['--yes', ...flags]); // runs the real install
+      assert.equal(r.status, 0, r.stderr);
+      npm(['run', 'build'], dir);
+      npm(['run', 'lint'], dir);
+    }
+  );
+}

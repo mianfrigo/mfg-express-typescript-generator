@@ -1,5 +1,6 @@
 import { CorsOptions } from 'cors';
-import { Request, Response } from 'express';
+import { Request } from 'express';
+import { IncomingMessage, ServerResponse } from 'node:http';
 import { TokenIndexer } from 'morgan';
 import logger from './logger.config';
 
@@ -36,8 +37,8 @@ export const corsOptionsWhiteList = (
 
 export const morganConfig = (
   tokens: TokenIndexer,
-  req: Request,
-  res: Response
+  req: IncomingMessage,
+  res: ServerResponse
 ) => {
   const log = [
     tokens.method(req, res),

@@ -1,65 +1,51 @@
 ![express-typescript](https://github.com/mianfrigo/mfg-express-typescript-generator/blob/main/express-typescript-draf.png?raw=true)
 
-[Express](https://www.npmjs.com/package/express) with [TypeScript's](https://www.npmjs.com/package/typescript) application generator.
+# @mianfrigo/express-typescript-generator
 
-<a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator" target="_blank"><img src="https://badgen.net/badge/npm/v1.3.8/blue" alt="NPM Version" /></a> <a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator" target="_blank"><img src="https://badgen.net/badge/license/MIT/green" alt="Package License" /></a>
+[![npm](https://badgen.net/npm/v/@mianfrigo/express-typescript-generator)](https://www.npmjs.com/package/@mianfrigo/express-typescript-generator) ![license](https://badgen.net/badge/license/MIT/green)
 
-## What is it?
+Scaffold an [Express 5](https://expressjs.com) + [TypeScript](https://www.typescriptlang.org) app in seconds. Zero runtime dependencies, Node >= 20.19.
 
-Node express generator similar to [express-generator-typescript](https://github.com/seanpmaxwell/express-generator-typescript) module. In this case we use
-[Webpack](https://www.npmjs.com/package/webpack) to compile the typescript to Javascript, also implement [EsLint](https://www.npmjs.com/package/eslint) to follow
-good practice and a clean code.
-
-## Project example
-
-When you run _@mianfrigo/express-typescript-generator_, it sets up a very basic application with a single basic route.
-This is to show how route work with node and express.
-
-A small cli will guide you through a couple of option to setup you new project base on your needs. You can select and setup your routes using limiters or setup mongoDb with [mongoose](hhttps://www.npmjs.com/package/mongoose). The app is configured with production quality client-side security. If you decide to use mongoDb it will generate a basic mongoose setup with `/user` as a first route, it will implementing a full CRUD to show the use of mongoose. I highly encourage to use this option.
-
-## Installation
+## Usage
 
 ```bash
-$ npm install -g @mianfrigo/express-typescript-generator
+npx @mianfrigo/express-typescript-generator my-app
+# or, installed globally:
+mfg-express-generator my-app
 ```
 
-## Quick Start
+Without flags you get a few yes/no prompts. Skip them with flags:
 
-The quickest way to get started is use `$ mfg-express-generator` and pass in the name of the project you want to create.
+| Flag | Effect |
+|---|---|
+| `-y, --yes` | No prompts; unset options default to off |
+| `--limiter` | Add `express-rate-limit` to routes |
+| `--mongo` | Add MongoDB with mongoose and a `/user` CRUD route |
+| `--auth` | Add JWT login route (needs `--mongo`); writes a random `SECRET_KEY` to `.env` |
+| `--rxjs` | Use rxjs instead of promises in controllers (needs `--mongo`) |
+| `--pm npm\|pnpm\|yarn` | Package manager for install (default `npm`) |
+| `--no-install` | Skip dependency install |
+| `-v, --version` | Print version |
 
-If you don't specify a project name, _express-ts_ will be set up for you as default name.
+Default project name is `express-ts`.
 
-Create the app:
+## What you get
+
+- Express 5, helmet, cors allow-list, morgan + winston logging, `.env` via dotenv.
+- `npm run dev` (tsx watch), `npm run build` (tsc), `npm start`, `npm run lint` (ESLint flat config + prettier).
+- Routes under `/api/v1`. With `--mongo`: edit `MONGO_DB` in `.env` before `npm run dev`.
+
+## Migrating from 1.x
+
+- Webpack, nodemon and the airbnb ESLint config are gone; build is plain `tsc`, dev is `tsx watch`.
+- Needs Node >= 20.19 (Express 5, Mongoose 9, ESLint 10).
+- `auto-bind` and `mongoose-unique-validator` removed; email uniqueness is a MongoDB unique index (duplicate -> HTTP 409).
+
+## Development
 
 ```bash
-$ mfg-express-typescript-generator "MY_PROJECT"
- or
-$ mfg-express-generator "MY_PROJECT"
+node --test             # fast checks (generates into a temp dir, no install)
+FULL=1 node --test      # also installs, builds and lints every flag combination
 ```
 
-Start your @mianfrigo/express-typescript-generator app
-in development mode at `http://localhost:3000/`:
-
-```bash
-$ cd "project name" && npm run dev
-```
-
-The project implement a white list of host for the CORS configuration that you can easy change/update on the `config/config.ts` file.
-
-If you decide to implement mongoDb as your Database, you would need to change the mongoDb connection string in the `.env` file before running the `npm run dev` command. The CLI will generate some routes for you have a good start.
-
-## Available commands for the server.
-
-- Run the production build: `npm start`.
-- Build the project for production: `npm run build`.
-- Run the server in development mode: `npm run dev`.
-
-## Debugging
-
-During development, _@mianfrigo/express-typescript-generator_ uses `webpack` compile the typescript code to javascript and `nodemon` to restart the server when changes are detected.
-
-Happy coding
-
-## License
-
-[MIT](LICENSE)
+MIT
