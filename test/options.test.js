@@ -21,9 +21,11 @@ test('flags set every option without prompting', async () => {
     git: 'auto',
     here: false,
     zod: false,
+    openapi: false,
     docker: false,
     test: false,
     zod: false,
+    openapi: false,
     git: 'auto',
     here: false,
   });
@@ -41,6 +43,7 @@ test('--yes never prompts and defaults every option to false', async () => {
     docker: false,
     test: false,
     zod: false,
+    openapi: false,
     git: 'auto',
     here: false,
   });
@@ -142,4 +145,15 @@ test('--zod is flag-only: set by flag, never prompted', async () => {
   };
   assert.equal((await run(['--zod'], ask)).zod, true);
   assert.equal((await run([], ask)).zod, false);
+});
+
+test('--openapi is flag-only and requires --zod', async () => {
+  const ask = async (q) => {
+    assert.ok(!/openapi|swagger/i.test(q), 'no prompt for --openapi');
+    return false;
+  };
+  const o = await run(['--zod', '--openapi'], ask);
+  assert.equal(o.openapi, true);
+  assert.equal((await run([], ask)).openapi, false);
+  assert.throws(() => parseCli(['--openapi']), /--openapi requires --zod/);
 });
