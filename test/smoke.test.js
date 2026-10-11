@@ -885,7 +885,8 @@ test('--postgres with auth, rxjs, zod, openapi, limiter, test: prisma controller
 test('--mongo output has no prisma files', () => {
   const { dir, r } = gen('mongo-noprisma', ['--yes', '--no-install', '--mongo']);
   assert.equal(r.status, 0, r.stderr);
-  assert.ok(!has(dir, 'prisma') && !has(dir, 'prisma.config.ts') && !has(dir, 'docker-compose.yml'));
+  assert.ok(!has(dir, 'prisma') && !has(dir, 'prisma.config.ts'));
+  assert.ok(!read(dir, 'docker-compose.yml').includes('postgres'), 'mongo compose is mongo only');
   assert.equal(pkg(dir).scripts.postinstall, undefined);
 });
 
@@ -1068,4 +1069,82 @@ test('pagination is documented: OpenAPI parameters and README', () => {
   const spec = read(dir, 'src/openapi.ts');
   assert.ok(spec.includes("name: 'page'") && spec.includes("name: 'limit'"));
   assert.ok(read(dir, 'README.md').includes('?page=') && read(dir, 'README.md').includes('{ data, meta }'));
+});
+
+const hasDockerCli = spawnSync('docker', ['compose', 'version']).status === 0;
+
+test('compose (postgres): db only by default; migrate + app with --docker', () => {
+  const off = gen('compose-pg-off', ['--yes', '--no-install', '--postgres']);
+  assert.equal(off.r.status, 0, off.r.stderr);
+  const y0 = read(off.dir, 'docker-compose.yml');
+  assert.ok(y0.includes('postgres:17-alpine'));
+  for (const absent of ['migrate:', 'app:', 'healthcheck', '{{']) {
+    assert.ok(!y0.includes(absent), `db-only compose must not contain ${absent}`);
+  }
+
+  const on = gen('compose-pg-on', ['--yes', '--no-install', '--postgres', '--docker']);
+  assert.equal(on.r.status, 0, on.r.stderr);
+  const y = read(on.dir, 'docker-compose.yml');
+  for (const present of [
+    'healthcheck', 'pg_isready', 'migrate:', 'target: build',
+    'npx prisma migrate deploy', 'service_healthy', 'service_completed_successfully',
+    'app:', 'env_file: .env', '@db:5432',
+  ]) {
+    assert.ok(y.includes(present), `full-stack compose should contain ${present}`);
+  }
+  assert.ok(!y.includes('{{'));
+});
+
+test('compose (mongo): local db by default; app with --docker; working MONGO_DB default', () => {
+  const off = gen('compose-mg-off', ['--yes', '--no-install', '--mongo']);
+  assert.equal(off.r.status, 0, off.r.stderr);
+  const y0 = read(off.dir, 'docker-compose.yml');
+  assert.ok(y0.includes('image: mongo:7'));
+  for (const absent of ['app:', 'healthcheck', '{{']) {
+    assert.ok(!y0.includes(absent), `db-only compose must not contain ${absent}`);
+  }
+  assert.match(read(off.dir, '.env'), /^MONGO_DB=mongodb:\/\/localhost:27017\/app$/m);
+  assert.match(read(off.dir, '.env.example'), /^MONGO_DB=mongodb:\/\/localhost:27017\/app$/m);
+
+  const on = gen('compose-mg-on', ['--yes', '--no-install', '--mongo', '--docker']);
+  const y = read(on.dir, 'docker-compose.yml');
+  for (const present of ['healthcheck', 'app:', 'MONGO_DB: mongodb://db:27017/app', 'service_healthy', 'env_file: .env']) {
+    assert.ok(y.includes(present), `full-stack compose should contain ${present}`);
+  }
+  assert.ok(!y.includes('migrate:') && !y.includes('{{'));
+});
+
+test('no compose file without a database', () => {
+  const { dir, r } = gen('compose-none', ['--yes', '--no-install', '--docker']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(!has(dir, 'docker-compose.yml'));
+});
+
+test('Dockerfile keeps the prisma CLI in the build stage and prunes in the final one', () => {
+  const { dir, r } = gen('dockerfile-prune', ['--yes', '--no-install', '--postgres', '--docker']);
+  assert.equal(r.status, 0, r.stderr);
+  const df = read(dir, 'Dockerfile');
+  const [buildStage, finalStage] = df.split(/\nFROM node:22-alpine\n/);
+  assert.ok(!buildStage.includes('npm prune'), 'build stage keeps dev dependencies (migrate service needs prisma)');
+  assert.ok(finalStage.includes('npm prune --omit=dev'));
+});
+
+test('generated compose files are valid per docker compose config', { skip: !hasDockerCli }, () => {
+  for (const [name, flags] of [
+    ['cfg-pg', ['--postgres']],
+    ['cfg-pg-docker', ['--postgres', '--docker']],
+    ['cfg-mg', ['--mongo']],
+    ['cfg-mg-docker', ['--mongo', '--docker']],
+  ]) {
+    const { dir, r } = gen(name, ['--yes', '--no-install', ...flags]);
+    assert.equal(r.status, 0, r.stderr);
+    const c = spawnSync('docker', ['compose', 'config', '-q'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(c.status, 0, `${name}: ${c.stderr}`);
+  }
+});
+
+test('README documents the compose stack with --docker', () => {
+  const { dir, r } = gen('compose-readme', ['--yes', '--no-install', '--postgres', '--docker']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(read(dir, 'README.md').includes('docker compose up --build'));
 });

@@ -1,0 +1,27 @@
+# Local MongoDB matching MONGO_DB in .env:  docker compose up -d
+#{{docker}} # Whole stack (app + database):  docker compose up --build
+services:
+  db:
+    image: mongo:7
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodata:/data/db
+#{{docker}}     healthcheck:
+#{{docker}}       test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand({ ping: 1 })']
+#{{docker}}       interval: 3s
+#{{docker}}       timeout: 5s
+#{{docker}}       retries: 20
+#{{docker}}   app:
+#{{docker}}     build: .
+#{{docker}}     env_file: .env
+#{{docker}}     environment:
+#{{docker}}       MONGO_DB: mongodb://db:27017/app
+#{{docker}}     ports:
+#{{docker}}       - '3000:3000'
+#{{docker}}     depends_on:
+#{{docker}}       db:
+#{{docker}}         condition: service_healthy
+
+volumes:
+  mongodata:
