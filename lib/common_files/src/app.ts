@@ -12,6 +12,11 @@ import baseRoutes from './routes';
 // import this without opening a port.
 const app = express();
 
+// Behind a load balancer, TRUST_PROXY=<hops> makes req.ip (and the rate
+// limiter) use the client address instead of the proxy's.
+const proxyHops = Number(process.env.TRUST_PROXY);
+if (proxyHops > 0) app.set('trust proxy', proxyHops);
+
 // Basic middlewares
 app.use(morgan(morganConfig));
 app.use(helmet());
