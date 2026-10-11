@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.3.0] - 2026-10-11
+
+### Added
+- `--postgres`: PostgreSQL with Prisma 7 as an alternative to `--mongo` (the two
+  are exclusive). Generates `prisma/schema.prisma`, `prisma.config.ts`, an
+  initial migration, a `docker-compose.yml` with Postgres 17, `DATABASE_URL` in
+  `.env`, and `db:migrate` / `db:deploy` scripts. The Prisma client is generated
+  by `postinstall` into `src/generated/prisma`.
+- Users and auth controllers (promise and rxjs variants) on Prisma. The password
+  hash is never returned; duplicate emails answer 409 and unknown ids 404.
+- `--auth`, `--rxjs`, `--zod` and `--openapi` work with either database.
+- Interactive mode asks "Setup PostgreSQL with Prisma?" when MongoDB is declined;
+  an explicit `--postgres` skips the MongoDB question.
+
+### Changed
+- `--auth`/`--rxjs` without a database now say "require a database (--mongo or
+  --postgres)".
+- The Dockerfile runs `prisma generate` before the build for `--postgres`.
+
+### Repo
+- New `postgres` workflow boots the generated apps against a `postgres:17`
+  service and drives CRUD and auth over HTTP.
+
 ## [2.2.0] - 2026-10-11
 
 ### Added
