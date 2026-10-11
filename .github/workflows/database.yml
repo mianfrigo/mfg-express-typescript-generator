@@ -25,7 +25,7 @@ jobs:
       - run: npm test -- --test-name-pattern postgres
         env:
           FULL: '1'
-          POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
 
   mongo:
     # Same checks against a real MongoDB for the --mongo apps (promise and rxjs).
@@ -48,4 +48,4 @@ jobs:
       - run: npm test -- --test-name-pattern "full-mongo|full-zod-mongo-auth|full-rxjs|full-auth|full-ci-mongo|full-openapi-auth"
         env:
           FULL: '1'
-          MONGO_URL: mongodb://localhost:27017
+          MONGO_URL: mongodb://127.0.0.1:27017
