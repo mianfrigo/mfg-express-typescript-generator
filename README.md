@@ -25,7 +25,7 @@ Without flags you get a few yes/no prompts. Skip them with flags:
 | `--rxjs` | Use rxjs instead of promises in controllers (needs `--mongo`) |
 | `--test` | Add vitest + supertest and an example test in `test/` (`npm test`) |
 | `--docker` | Add a multi-stage `Dockerfile` and `.dockerignore` (run with `docker run --env-file .env`) |
-| `--pm npm|pnpm|yarn` | Package manager for install (default: the one that launched the CLI, else `npm`) |
+| `--pm npm\|pnpm\|yarn` | Package manager for install (default: the one that launched the CLI, else `npm`) |
 | `--git`, `--no-git` | Force or skip `git init` (default: init unless already inside a repo) |
 | `--here` | Scaffold into the current (empty) directory |
 | `--no-install` | Skip dependency install |
