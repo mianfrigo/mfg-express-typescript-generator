@@ -17,6 +17,7 @@ test('flags set every option without prompting', async () => {
     rxjs: true,
     pm: 'pnpm',
     install: false,
+    docker: false,
   });
 });
 
@@ -29,6 +30,7 @@ test('--yes never prompts and defaults every option to false', async () => {
     rxjs: false,
     pm: 'npm',
     install: true,
+    docker: false,
   });
 });
 
@@ -67,4 +69,15 @@ test('--auth or --rxjs without --mongo is rejected', async () => {
 
 test('unknown --pm is rejected', () => {
   assert.throws(() => parseCli(['--pm', 'bun']), /--pm/);
+});
+
+test('--docker is flag-only: set by flag, never prompted', async () => {
+  const asked = [];
+  const ask = async (q) => {
+    asked.push(q);
+    return false;
+  };
+  assert.equal((await run(['--docker'], ask)).docker, true);
+  assert.equal((await run([], ask)).docker, false);
+  assert.ok(asked.every((q) => !/docker/i.test(q)));
 });
