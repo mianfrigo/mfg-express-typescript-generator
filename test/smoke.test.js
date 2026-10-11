@@ -283,20 +283,34 @@ async function checkDbCrud(dir, flags, adminUrl) {
   const child = spawn(process.execPath, ['dist/index.js'], {
     cwd: dir,
     env: { ...env, PORT: String(port) },
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
-  const exited = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
+  // keep the app's own output so a boot failure says why, not just "false"
+  let appOutput = '';
+  child.stdout.on('data', (d) => (appOutput += d));
+  child.stderr.on('data', (d) => (appOutput += d));
+  let earlyExit = null;
+  const exited = new Promise((resolve) =>
+    child.on('exit', (code) => {
+      earlyExit = code;
+      resolve(code);
+    })
+  );
   const base = `http://127.0.0.1:${port}/api/v1`;
   try {
     let up = false;
-    for (let i = 0; i < 60 && !up; i++) {
+    // up to ~60 s: the first connection to a service container can be slow on CI
+    for (let i = 0; i < 240 && !up && earlyExit === null; i++) {
       try {
         up = (await fetch(`${base}/health`)).status === 200;
       } catch {
         await new Promise((r) => setTimeout(r, 250));
       }
     }
-    assert.ok(up, 'app booted against postgres');
+    assert.ok(
+      up,
+      `app did not boot against ${kind} (exit code: ${earlyExit}). Output:\n${appOutput.slice(-3000)}`
+    );
     assert.equal((await fetch(`${base}/ready`)).status, 200, 'ready with a live db');
 
     const call = async (method, p, body, token) => {
