@@ -2,7 +2,7 @@
 // and prints a markdown table. Bumping is a manual edit in lib/generate.js
 // followed by `FULL=1 npm test`.
 // Held on purpose: typescript 5.x (typescript-eslint peer is <6.1) and
-// vitest 4.x (vitest 5 needs Node >= 22; generated apps support Node 20).
+// vitest 3.x (4.x crashes the npm 10 resolver with "reading edgesOut"; 5 needs Node >= 22).
 import { pinned } from '../lib/generate.js';
 
 const latestOf = async (name) => {
