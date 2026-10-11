@@ -1148,3 +1148,20 @@ test('README documents the compose stack with --docker', () => {
   assert.equal(r.status, 0, r.stderr);
   assert.ok(read(dir, 'README.md').includes('docker compose up --build'));
 });
+
+test('README documents every CLI flag and the main generated-app features', () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  const options = readFileSync(new URL('../lib/options.js', import.meta.url), 'utf8');
+  const flags = [...options.matchAll(/^\s+'?([a-z-]+)'?: \{ type: '(?:boolean|string)'/gm)].map((m) => m[1]);
+  assert.ok(flags.length >= 15, `parsed the flag list (${flags.join(', ')})`);
+  for (const flag of flags) {
+    assert.ok(readme.includes(`--${flag}`), `README must document --${flag}`);
+  }
+  for (const topic of [
+    'db:seed', '?page=', '{ data, meta }', 'CORS_ORIGINS', 'TRUST_PROXY', 'LOG_LEVEL',
+    'GET /api/v1/ready', 'docker compose up --build', '.env.example', 'MONGO_DB', 'DATABASE_URL',
+  ]) {
+    assert.ok(readme.includes(topic), `README must mention ${topic}`);
+  }
+  assert.ok(!/needs `--mongo`/.test(readme), 'auth/rxjs work with either database');
+});
