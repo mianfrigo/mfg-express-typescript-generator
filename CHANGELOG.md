@@ -1,5 +1,37 @@
 # Changelog
 
+## [2.5.0] - 2026-10-11
+
+### Added
+- Paginated `GET /api/v1/user?page=&limit=` in every app variant (in-memory,
+  MongoDB, PostgreSQL; promise and rxjs). `limit` defaults to 20 and is capped
+  at 100; missing or invalid values fall back to the defaults. Results are
+  ordered so pages do not shuffle. Documented in the OpenAPI spec and the
+  generated README.
+- Full-stack `docker-compose.yml` with `--docker`: PostgreSQL apps get a
+  one-shot `migrate` service (`prisma migrate deploy`) and the `app`; MongoDB
+  apps get `mongo:7` and the `app`. Healthchecks order the startup, and
+  `docker compose up --build` runs everything.
+- MongoDB apps now ship a `docker-compose.yml` with a local `mongo:7` service,
+  also without `--docker`.
+
+### Changed
+- **`GET /api/v1/user` returns an envelope** `{ data, meta: { page, limit, total,
+  totalPages } }` instead of a bare array. Clients that read the array body need
+  to read `data`.
+- **`MONGO_DB` defaults to `mongodb://localhost:27017/app`** (matching the
+  compose service) instead of a placeholder string.
+- The Dockerfile keeps development dependencies in the build stage and prunes
+  them in the final stage, so the compose `migrate` service has the Prisma CLI.
+  The runtime image contents are unchanged.
+
+### Repo
+- New `docker` workflow brings the generated stack up with
+  `docker compose up --build` for both databases and checks `/ready`,
+  register, login, an authenticated list and the unauthenticated 401.
+- Runtime checks cover pagination against the compiled app and against real
+  PostgreSQL and MongoDB.
+
 ## [2.4.0] - 2026-10-11
 
 ### Added
