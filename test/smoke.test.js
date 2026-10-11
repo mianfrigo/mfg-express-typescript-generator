@@ -180,7 +180,7 @@ function checkRequireAuth(dir) {
 
 // compiled validate middleware + schemas, no MongoDB needed
 function checkValidate(dir, flags) {
-  const mongo = flags.includes('--mongo');
+  const mongo = flags.includes('--mongo') || flags.includes('--postgres'); // camelCase db schemas
   const good = mongo
     ? { firstName: 'Ada', lastName: 'L', email: 'a@b.co', extra: 1 }
     : { first_name: 'Ada', last_name: 'L', email: 'a@b.co', extra: 1 };
@@ -235,6 +235,130 @@ function checkOpenapiDoc(dir, flags) {
   }
 }
 
+// Real PostgreSQL (POSTGRES_URL, e.g. a CI service container): apply the
+// committed migration, boot the compiled app, then drive CRUD/auth over HTTP.
+async function checkPostgresCrud(dir, flags, adminUrl) {
+  const auth = flags.includes('--auth');
+  const zod = flags.includes('--zod');
+  const dbName = 't_' + Math.random().toString(16).slice(2, 10);
+  const mk = spawnSync(
+    process.execPath,
+    [
+      '-e',
+      `const { Client } = require('pg');
+       (async () => {
+         const c = new Client({ connectionString: process.env.ADMIN_URL });
+         await c.connect();
+         await c.query('CREATE DATABASE "${dbName}"');
+         await c.end();
+       })().catch((e) => { console.error(e); process.exit(1); });`,
+    ],
+    { cwd: dir, encoding: 'utf8', env: { ...process.env, ADMIN_URL: adminUrl } }
+  );
+  assert.equal(mk.status, 0, mk.stderr);
+  const url = new URL(adminUrl);
+  url.pathname = '/' + dbName;
+  const env = { ...process.env, DATABASE_URL: url.toString() };
+
+  const win = process.platform === 'win32'; // one string: no shell+args warning
+  const depOpts = { cwd: dir, encoding: 'utf8', env };
+  const dep = win
+    ? spawnSync('npm run db:deploy', { ...depOpts, shell: true })
+    : spawnSync('npm', ['run', 'db:deploy'], depOpts);
+  assert.equal(dep.status, 0, `db:deploy\n${dep.stdout}\n${dep.stderr}`);
+
+  const port = 39500 + Math.floor(Math.random() * 400);
+  const child = spawn(process.execPath, ['dist/index.js'], {
+    cwd: dir,
+    env: { ...env, PORT: String(port) },
+    stdio: 'ignore',
+  });
+  const exited = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
+  const base = `http://127.0.0.1:${port}/api/v1`;
+  try {
+    let up = false;
+    for (let i = 0; i < 60 && !up; i++) {
+      try {
+        up = (await fetch(`${base}/health`)).status === 200;
+      } catch {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    }
+    assert.ok(up, 'app booted against postgres');
+
+    const call = async (method, p, body, token) => {
+      const res = await fetch(base + p, {
+        method,
+        headers: {
+          'content-type': 'application/json',
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const text = await res.text();
+      return { status: res.status, body: text ? JSON.parse(text) : null };
+    };
+
+    let token;
+    if (auth) {
+      const reg = await call('POST', '/auth/register', {
+        firstName: 'Reg', lastName: 'User', email: 'reg@x.co', password: 'password123',
+      });
+      assert.equal(reg.status, 201);
+      assert.equal(reg.body.password, undefined, 'hash never returned');
+      const bad = await call('POST', '/auth', { email: 'reg@x.co', password: 'wrong-password' });
+      assert.equal(bad.status, 401);
+      const login = await call('POST', '/auth', { email: 'reg@x.co', password: 'password123' });
+      assert.equal(login.status, 200);
+      assert.ok(login.body.authToken);
+      assert.equal(login.body.auth_user.password, undefined);
+      token = login.body.authToken;
+      assert.equal((await call('GET', '/user')).status, 401, 'user routes need a token');
+    }
+
+    const made = await call('POST', '/user', { firstName: 'Ada', lastName: 'L', email: 'ada@x.co', extra: 1 }, token);
+    assert.equal(made.status, 201);
+    assert.ok(made.body.id);
+    assert.equal(made.body.password, undefined);
+    assert.equal(made.body.extra, undefined);
+
+    const dup = await call('POST', '/user', { firstName: 'Ada', lastName: 'L', email: 'ada@x.co' }, token);
+    assert.equal(dup.status, 409);
+    assert.equal(dup.body.error.message, 'Resource already exists');
+
+    const list = await call('GET', '/user', undefined, token);
+    assert.equal(list.status, 200);
+    assert.ok(list.body.some((u) => u.email === 'ada@x.co'));
+    assert.ok(list.body.every((u) => u.password === undefined));
+
+    const one = await call('GET', `/user/${made.body.id}`, undefined, token);
+    assert.equal(one.status, 200);
+    assert.equal(one.body.email, 'ada@x.co');
+    assert.equal((await call('GET', '/user/does-not-exist', undefined, token)).status, 404);
+
+    const upd = await call('PUT', `/user/${made.body.id}`, { firstName: 'Grace' }, token);
+    assert.equal(upd.status, 200);
+    assert.equal(upd.body.firstName, 'Grace');
+    assert.equal((await call('PUT', '/user/does-not-exist', { firstName: 'X' }, token)).status, 404);
+
+    if (zod) {
+      const inv = await call('POST', '/user', { firstName: 'Z', lastName: 'Z', email: 'not-an-email' }, token);
+      assert.equal(inv.status, 400);
+      assert.match(inv.body.error.message, /email/);
+    }
+
+    assert.equal((await call('DELETE', `/user/${made.body.id}`, undefined, token)).status, 200);
+    assert.equal((await call('DELETE', `/user/${made.body.id}`, undefined, token)).status, 404);
+
+    if (process.platform !== 'win32') {
+      child.kill('SIGTERM');
+      assert.equal(await exited, 0, 'graceful exit disconnects prisma');
+    }
+  } finally {
+    child.kill('SIGKILL');
+  }
+}
+
 // boots the compiled base app, hits /health, then SIGTERM must exit 0
 async function checkHealthAndShutdown(dir, openapi = false) {
   const port = 39000 + Math.floor(Math.random() * 500);
@@ -284,11 +408,14 @@ const MATRIX = {
   'full-auth': ['--mongo', '--auth'],
   'full-rxjs': ['--mongo', '--rxjs'],
   'full-test': ['--test'],
+  'full-postgres': ['--postgres'],
+  'full-postgres-auth-rxjs': ['--postgres', '--auth', '--rxjs', '--zod', '--openapi'],
   'full-zod': ['--zod'],
   'full-openapi': ['--zod', '--openapi'],
   'full-openapi-auth': ['--zod', '--openapi', '--mongo', '--auth'],
   'full-zod-mongo-auth': ['--zod', '--mongo', '--auth'],
   'full-all': ['--mongo', '--auth', '--rxjs', '--limiter', '--test', '--docker', '--zod', '--openapi'],
+  'full-postgres-all': ['--postgres', '--auth', '--limiter', '--zod', '--openapi', '--test', '--docker'],
 };
 
 const npm = (args, cwd) => {
@@ -311,6 +438,9 @@ for (const [name, flags] of Object.entries(MATRIX)) {
       if (flags.includes('--test')) npm(['test'], dir);
       if (flags.includes('--zod')) checkValidate(dir, flags);
       if (flags.includes('--openapi')) checkOpenapiDoc(dir, flags);
+      if (process.env.POSTGRES_URL && flags.includes('--postgres')) {
+        await checkPostgresCrud(dir, flags, process.env.POSTGRES_URL);
+      }
       if (flags.includes('--auth')) checkRequireAuth(dir);
       if (name === 'full-base' || name === 'full-openapi') {
         await checkHealthAndShutdown(dir, flags.includes('--openapi'));
@@ -612,4 +742,60 @@ test('without --openapi: app.ts has no swagger and no openapi.ts', () => {
   assert.ok(!read(dir, 'src/app.ts').includes('swagger'));
   assert.ok(!has(dir, 'src/openapi.ts'));
   assert.equal(pkg(dir).dependencies['swagger-ui-express'], undefined);
+});
+
+test('--mongo and --postgres together exit 1', () => {
+  const { r } = gen('both-db', ['--yes', '--no-install', '--mongo', '--postgres']);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /--postgres/);
+});
+
+test('--postgres: prisma schema, config, migration, compose, env, scripts, deps', () => {
+  const { dir, r } = gen('pg-base', ['--yes', '--no-install', '--postgres']);
+  assert.equal(r.status, 0, r.stderr);
+  const schema = read(dir, 'prisma/schema.prisma');
+  assert.ok(schema.includes('moduleFormat = "cjs"') && schema.includes('model User'));
+  assert.ok(schema.includes('email     String   @unique'));
+  assert.ok(has(dir, 'prisma.config.ts'));
+  const migs = readdirSync(path.join(dir, 'prisma/migrations'));
+  const init = migs.find((m) => m.endsWith('_init'));
+  assert.ok(init, 'initial migration present');
+  assert.ok(read(dir, `prisma/migrations/${init}/migration.sql`).includes('CREATE TABLE "User"'));
+  assert.match(read(dir, 'prisma/migrations/migration_lock.toml'), /provider = "postgresql"/);
+  assert.ok(read(dir, 'docker-compose.yml').includes('postgres:17'));
+  const env = read(dir, '.env');
+  assert.match(env, /^DATABASE_URL=postgresql:\/\//m);
+  assert.ok(!env.includes('MONGO_DB'));
+  const p = pkg(dir);
+  for (const d of ['@prisma/client', '@prisma/adapter-pg', 'pg']) assert.ok(p.dependencies[d], d);
+  for (const d of ['prisma', '@types/pg']) assert.ok(p.devDependencies[d], d);
+  assert.equal(p.dependencies.mongoose, undefined);
+  assert.equal(p.scripts.postinstall, 'prisma generate');
+  assert.equal(p.scripts['db:migrate'], 'prisma migrate dev');
+  assert.equal(p.scripts['db:deploy'], 'prisma migrate deploy');
+  assert.match(read(dir, '.gitignore'), /^src\/generated$/m);
+  const ts = allTs(dir);
+  assert.ok(ts.includes('prisma.user') && !ts.includes('mongoose'));
+  assert.ok(read(dir, 'src/middleware/errorHandler.ts').includes('P2002'));
+});
+
+test('--postgres with auth, rxjs, zod, openapi, limiter, test: prisma controllers, no markers', () => {
+  const { dir, r } = gen('pg-all', [
+    '--yes', '--no-install', '--postgres', '--auth', '--rxjs', '--zod', '--openapi', '--limiter', '--test',
+  ]);
+  assert.equal(r.status, 0, r.stderr);
+  const auth = read(dir, 'src/controllers/auth.controller.ts');
+  assert.ok(auth.includes('prisma.user') && auth.includes('rxjs'));
+  assert.ok(read(dir, 'src/controllers/user.controller.ts').includes('prisma.user'));
+  assert.ok(read(dir, 'src/validation/user.validation.ts').includes('firstName'));
+  assert.ok(read(dir, 'src/routes/index.ts').includes('requireAuth, userRoute'));
+  const ts = allTs(dir);
+  assert.ok(!ts.includes('{{') && !ts.includes('mongoose'));
+});
+
+test('--mongo output has no prisma files', () => {
+  const { dir, r } = gen('mongo-noprisma', ['--yes', '--no-install', '--mongo']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(!has(dir, 'prisma') && !has(dir, 'prisma.config.ts') && !has(dir, 'docker-compose.yml'));
+  assert.equal(pkg(dir).scripts.postinstall, undefined);
 });

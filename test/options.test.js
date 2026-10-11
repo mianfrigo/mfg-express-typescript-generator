@@ -54,7 +54,7 @@ test('no ask function and no flags falls back to defaults', async () => {
   assert.equal(o.db, null);
 });
 
-test('prompts fill unflagged options; mongo-only questions skipped when mongo is no', async () => {
+test('prompts fill unflagged options; db-only questions skipped when no db is chosen', async () => {
   const asked = [];
   const ask = async (q) => {
     asked.push(q);
@@ -63,7 +63,7 @@ test('prompts fill unflagged options; mongo-only questions skipped when mongo is
   const o = await run([], ask);
   assert.equal(o.limiter, true);
   assert.equal(o.db, null);
-  assert.equal(asked.length, 2); // limiter + mongo only
+  assert.equal(asked.length, 3); // limiter + mongo + postgres only
 });
 
 test('auth/rxjs questions asked when mongo answered yes', async () => {
@@ -156,4 +156,38 @@ test('--openapi is flag-only and requires --zod', async () => {
   assert.equal(o.openapi, true);
   assert.equal((await run([], ask)).openapi, false);
   assert.throws(() => parseCli(['--openapi']), /--openapi requires --zod/);
+});
+
+test('--postgres selects the postgres db', async () => {
+  const o = await run(['--postgres', '--auth', '--rxjs', '--limiter'], never);
+  assert.equal(o.db, 'postgres');
+  assert.equal(o.auth && o.rxjs, true);
+});
+
+test('--mongo and --postgres together are rejected', () => {
+  assert.throws(() => parseCli(['--mongo', '--postgres']), /--mongo.*--postgres/);
+});
+
+test('postgres question is asked only when mongo is answered no; yes enables auth/rxjs questions', async () => {
+  const asked = [];
+  const ask = async (q) => {
+    asked.push(q);
+    return /PostgreSQL|auth|rxjs/i.test(q);
+  };
+  const o = await run([], ask);
+  assert.equal(o.db, 'postgres');
+  assert.equal(asked.length, 5); // limiter, mongo, postgres, auth, rxjs
+
+  const asked2 = [];
+  const ask2 = async (q) => {
+    asked2.push(q);
+    return /MongoDB|auth|rxjs/i.test(q);
+  };
+  const o2 = await run([], ask2);
+  assert.equal(o2.db, 'mongo');
+  assert.ok(asked2.every((q) => !/PostgreSQL/i.test(q)), 'no postgres prompt after mongo yes');
+});
+
+test('--auth without any db names both database flags', async () => {
+  await assert.rejects(run(['--auth'], undefined), /--mongo or --postgres/);
 });
