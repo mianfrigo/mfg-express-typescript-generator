@@ -47,6 +47,9 @@ Logs go to stdout: JSON when `NODE_ENV=production`, readable text otherwise.
 #{{postgres}} npm run dev
 #{{postgres}} ```
 
+#{{ci}} ## CI
+#{{ci}} `.github/workflows/ci.yml` runs install, lint, build and tests on every push to `main` and on pull requests.
+
 #{{docker}} ## Docker
 #{{docker}} ```bash
 #{{docker}} docker build -t app .
