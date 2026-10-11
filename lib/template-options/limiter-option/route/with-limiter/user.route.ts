@@ -9,6 +9,8 @@ router.get('/', mainLimiter, userController.getUsers);
 
 router.get('/:id', mainLimiter, userController.getSingleUser);
 
+router.post('/', mainLimiter, userController.createUsers);
+
 router.delete('/:id', mainLimiter, userController.removeUser);
 
 router.put('/:id', mainLimiter, userController.updateUser);

@@ -1,32 +1,40 @@
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response } from 'express';
+import createHttpError from 'http-errors';
 import users from '../db/data';
-import { boundClass } from 'autobind-decorator';
 
-@boundClass
 export default class UserController {
-	constructor() {}
+  getUsers = (_req: Request, res: Response) => {
+    res.status(200).json(users);
+  };
 
-	getUsers(req: Request, res: Response, next: NextFunction) {
-		res.status(200).json(users);
-	}
+  getSingleUser = (req: Request, res: Response) => {
+    const user = users.find((u) => u.id === Number(req.params.id));
+    if (!user) throw new createHttpError.NotFound();
+    res.status(200).json(user);
+  };
 
-	getSingleUser(req: Request, res: Response, next: NextFunction) {
-		const { id } = req.params;
-		const user = users.find((u) => u.id == +id);
-		res.status(200).json(user);
-	}
+  createUsers = (req: Request, res: Response) => {
+    const { first_name, last_name, email, gender } = req.body;
+    const user = {
+      id: users.length + 1,
+      first_name,
+      last_name,
+      email,
+      gender,
+    };
+    users.push(user);
+    res.status(201).json(user);
+  };
 
-	removeUser(req: Request, res: Response, next: NextFunction) {
-		const { id } = req.params;
-		res.status(200).json({
-			message: `User ${id} successfully removed`,
-		});
-	}
+  removeUser = (req: Request, res: Response) => {
+    res.status(200).json({
+      message: `User ${req.params.id} successfully removed`,
+    });
+  };
 
-	updateUser(req: Request, res: Response, next: NextFunction) {
-		const { id } = req.params;
-		res.status(200).json({
-			message: `User ${id} successfully updaded`,
-		});
-	}
+  updateUser = (req: Request, res: Response) => {
+    res.status(200).json({
+      message: `User ${req.params.id} successfully updated`,
+    });
+  };
 }

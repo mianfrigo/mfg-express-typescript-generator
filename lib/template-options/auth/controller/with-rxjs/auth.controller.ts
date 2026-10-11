@@ -1,58 +1,89 @@
-import { NextFunction, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import { forkJoin, from, of, throwError } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
-import UserModel from '../models/user.schema';
 import bcrypt from 'bcryptjs';
+import { NextFunction, Request, Response } from 'express';
 import createHttpError from 'http-errors';
-import { boundClass } from 'autobind-decorator';
+import jwt from 'jsonwebtoken';
+import { from, map, switchMap } from 'rxjs';
+import UserModel from '../models/user.schema';
 
-const User = UserModel;
+// compared when the user does not exist, so both failures cost one bcrypt round
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
 
-@boundClass
 export default class AuthController {
-	constructor() {}
+  registerUser = (req: Request, res: Response, next: NextFunction) => {
+    const { firstName, lastName, email, password } = req.body ?? {};
+    if (
+      [firstName, lastName, email, password].some((v) => typeof v !== 'string')
+    ) {
+      next(
+        new createHttpError.BadRequest(
+          'firstName, lastName, email and password are required'
+        )
+      );
+      return;
+    }
+    if (password.length < 8) {
+      next(
+        new createHttpError.BadRequest('password must be at least 8 characters')
+      );
+      return;
+    }
+    from(bcrypt.hash(password, 10))
+      .pipe(
+        switchMap((hash) =>
+          from(
+            UserModel.create({ firstName, lastName, email, password: hash })
+          )
+        ),
+        map((user) => {
+          const { password: _hash, ...created } = user.toObject();
+          return created;
+        })
+      )
+      .subscribe({
+        next: (body) => res.status(201).json(body),
+        error: next,
+      });
+  };
 
-	authUser(req: Request, res: Response, next: NextFunction) {
-		const { email, password } = req.body;
-		from(User.findOne({ email: email }))
-			.pipe(
-				switchMap((user: any) => {
-					if (!user) {
-						return throwError(() => new createHttpError.NotFound());
-					}
-					return forkJoin([
-						of(user),
-						from(bcrypt.compare(password, user.password)),
-					]);
-				})
-			)
-			.subscribe({
-				next: ([user, result]) => {
-					if (!result) {
-						res.status(401);
-						next(new createHttpError.Forbidden('Wrong password'));
-						return;
-					}
-					const userToken = {
-						auth_id: user._id,
-						email: user.email,
-					};
-					const token = jwt.sign(userToken, process.env.SECRET_KEY, {
-						expiresIn: '24h',
-					});
-					const decoded: any = jwt.decode(token);
-					const authToken = {
-						authToken: token,
-						authToken_exp: decoded.exp,
-						auth_user: user,
-					};
+  authUser = (req: Request, res: Response, next: NextFunction) => {
+    const { email, password } = req.body ?? {};
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      next(new createHttpError.BadRequest('email and password are required'));
+      return;
+    }
+    const secret = process.env.SECRET_KEY;
+    if (!secret) {
+      next(new Error('SECRET_KEY is not set'));
+      return;
+    }
 
-					res.status(200).json(authToken);
-				},
-				error: (err) => {
-					next(err);
-				},
-			});
-	}
+    from(UserModel.findOne({ email }).select('+password'))
+      .pipe(
+        switchMap((user) =>
+          // always run one bcrypt compare so response time does not reveal valid emails
+          from(bcrypt.compare(password, user?.password ?? DUMMY_HASH)).pipe(
+            map((ok) => {
+              if (!user || !ok) {
+                throw new createHttpError.Unauthorized('Invalid credentials');
+              }
+              return user;
+            })
+          )
+        ),
+        map((user) => {
+          const token = jwt.sign(
+            { auth_id: user._id, email: user.email },
+            secret,
+            { expiresIn: '24h' }
+          );
+          const { exp } = jwt.decode(token) as { exp: number };
+          const { password: _hash, ...authUser } = user.toObject();
+          return { authToken: token, authToken_exp: exp, auth_user: authUser };
+        })
+      )
+      .subscribe({
+        next: (body) => res.status(200).json(body),
+        error: next,
+      });
+  };
 }

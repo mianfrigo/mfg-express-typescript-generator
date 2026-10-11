@@ -1,5 +1,7 @@
 import { CorsOptions } from 'cors';
-import { Request, Response } from 'express';
+import { Request } from 'express';
+import { IncomingMessage, ServerResponse } from 'node:http';
+import { TokenIndexer } from 'morgan';
 import logger from './logger.config';
 
 /* Cors Config  */
@@ -17,21 +19,26 @@ const corsOptions: CorsOptions = {
   preflightContinue: false,
 };
 
-export const corsOptionsWhiteList = (request: Request, callback: Function) => {
-  const whiteList = ['localhost:4200', 'localhost:3000'];
-  const origin = request.header('origin')
-    ? request.header('origin')
-    : request.header('host');
-  if (origin && whiteList.some((host: string) => origin.includes(host))) {
-    corsOptions['origin'] = true;
-    callback(null, corsOptions);
-    return;
-  }
-  corsOptions['origin'] = false;
-  callback(new Error(`Origin not allowed by CORS: ${origin}`), corsOptions);
+const allowed = ['http://localhost:4200', 'http://localhost:3000'];
+
+// Exact origin match. Requests without an Origin header (curl, server-to-server,
+// same-origin) are served; they just get no CORS headers.
+export const corsOptionsWhiteList = (
+  request: Request,
+  callback: (err: Error | null, options?: CorsOptions) => void
+) => {
+  const origin = request.header('origin');
+  callback(null, {
+    ...corsOptions,
+    origin: origin !== undefined && allowed.includes(origin),
+  });
 };
 
-export const morganConfig = (tokens: any, req: Request, res: Response) => {
+export const morganConfig = (
+  tokens: TokenIndexer,
+  req: IncomingMessage,
+  res: ServerResponse
+) => {
   const log = [
     tokens.method(req, res),
     tokens.url(req, res),

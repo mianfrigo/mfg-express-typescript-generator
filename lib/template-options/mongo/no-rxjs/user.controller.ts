@@ -1,71 +1,42 @@
-import { NextFunction, Request, Response } from 'express';
-import UserModel from '../models/user.schema';
+import { Request, Response } from 'express';
 import createHttpError from 'http-errors';
-import { boundClass } from 'autobind-decorator';
+import UserModel from '../models/user.schema';
 
-const User = UserModel;
+const FIELDS = ['firstName', 'lastName', 'email'];
+const pick = (body: Record<string, unknown> = {}) =>
+  Object.fromEntries(Object.entries(body).filter(([k]) => FIELDS.includes(k)));
 
-@boundClass
 export default class UserController {
-	constructor() {}
+  createUsers = async (req: Request, res: Response) => {
+    const user = await UserModel.create(pick(req.body));
+    res.status(201).json(user);
+  };
 
-	async createUsers(req: Request, res: Response, next: NextFunction) {
-		try {
-			const newUser = new User({ ...req.body });
-			const userSaved = await newUser.save();
-			res.status(200).json(userSaved);
-		} catch (err) {
-			next(err);
-		}
-	}
+  getUsers = async (_req: Request, res: Response) => {
+    res.status(200).json(await UserModel.find());
+  };
 
-	async getUsers(req: Request, res: Response, next: NextFunction) {
-		try {
-			const users = await User.find();
-			res.status(200).json(users);
-		} catch (err) {
-			next(err);
-		}
-	}
+  getSingleUser = async (req: Request, res: Response) => {
+    const user = await UserModel.findById(req.params.id);
+    if (!user) throw new createHttpError.NotFound();
+    res.status(200).json(user);
+  };
 
-	async getSingleUser(req: Request, res: Response, next: NextFunction) {
-		const { id } = req.params;
-		try {
-			const user = await User.findOne({ _id: id });
-			if (user) {
-				res.status(200).json(user);
-				return;
-			}
-			res.status(404);
-			const error = new createHttpError.NotFound();
-			next(error);
-		} catch (err) {
-			next(err);
-		}
-	}
+  removeUser = async (req: Request, res: Response) => {
+    const user = await UserModel.findByIdAndDelete(req.params.id);
+    if (!user) throw new createHttpError.NotFound();
+    res.status(200).json({
+      message: `User ${req.params.id} successfully deleted`,
+    });
+  };
 
-	async removeUser(req: Request, res: Response, next: NextFunction) {
-		const { id } = req.params;
-		try {
-			const userDeleted = await User.deleteOne({ _id: id });
-			res.status(200).json({
-				message: `User ${id} successfully deleted`,
-			});
-		} catch (err) {
-			next(err);
-		}
-	}
-
-	async updateUser(req: Request, res: Response, next: NextFunction) {
-		const { id } = req.params;
-		const user = { ...req.body };
-		try {
-			const updated = await User.findOneAndUpdate({ _id: id }, user, {
-				new: true,
-			});
-			res.status(200).json(updated);
-		} catch (err) {
-			next(err);
-		}
-	}
+  updateUser = async (req: Request, res: Response) => {
+    const user = await UserModel.findByIdAndUpdate(
+      req.params.id,
+      pick(req.body),
+      { new: true, runValidators: true }
+    );
+    if (!user) throw new createHttpError.NotFound();
+    res.status(200).json(user);
+  };
 }
