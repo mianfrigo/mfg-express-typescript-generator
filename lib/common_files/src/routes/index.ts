@@ -11,6 +11,6 @@ router.get('/health', (_req, res) => {
 
 //{{auth}} router.use('/auth', authRoute);
 //{{auth}} router.use('/user', requireAuth, userRoute);
-//{{noauth}} router.use('/user', userRoute);
+//{{!auth}} router.use('/user', userRoute);
 
 export default router;

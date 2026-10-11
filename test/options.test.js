@@ -20,8 +20,10 @@ test('flags set every option without prompting', async () => {
     install: false,
     git: 'auto',
     here: false,
+    zod: false,
     docker: false,
     test: false,
+    zod: false,
     git: 'auto',
     here: false,
   });
@@ -38,6 +40,7 @@ test('--yes never prompts and defaults every option to false', async () => {
     install: true,
     docker: false,
     test: false,
+    zod: false,
     git: 'auto',
     here: false,
   });
@@ -130,4 +133,13 @@ test('validateName follows npm package-name rules', () => {
 
 test('--here is a plain boolean flag', async () => {
   assert.equal((await run(['--here'])).here, true);
+});
+
+test('--zod is flag-only: set by flag, never prompted', async () => {
+  const ask = async (q) => {
+    assert.ok(!/zod|validat/i.test(q), 'no prompt for --zod');
+    return false;
+  };
+  assert.equal((await run(['--zod'], ask)).zod, true);
+  assert.equal((await run([], ask)).zod, false);
 });
