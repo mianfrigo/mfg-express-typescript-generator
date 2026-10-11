@@ -18,6 +18,7 @@ test('flags set every option without prompting', async () => {
     pm: 'pnpm',
     install: false,
     docker: false,
+    test: false,
   });
 });
 
@@ -31,6 +32,7 @@ test('--yes never prompts and defaults every option to false', async () => {
     pm: 'npm',
     install: true,
     docker: false,
+    test: false,
   });
 });
 
@@ -80,4 +82,13 @@ test('--docker is flag-only: set by flag, never prompted', async () => {
   assert.equal((await run(['--docker'], ask)).docker, true);
   assert.equal((await run([], ask)).docker, false);
   assert.ok(asked.every((q) => !/docker/i.test(q)));
+});
+
+test('--test is flag-only: set by flag, never prompted', async () => {
+  const ask = async (q) => {
+    assert.ok(!/test/i.test(q), 'no prompt for --test');
+    return false;
+  };
+  assert.equal((await run(['--test'], ask)).test, true);
+  assert.equal((await run([], ask)).test, false);
 });

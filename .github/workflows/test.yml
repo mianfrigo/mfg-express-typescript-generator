@@ -12,6 +12,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: node --test
+      - run: npm test
         env:
           FULL: ${{ matrix.node == 22 && matrix.os == 'ubuntu-latest' && '1' || '' }}
