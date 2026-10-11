@@ -1123,7 +1123,7 @@ test('no compose file without a database', () => {
 test('Dockerfile keeps the prisma CLI in the build stage and prunes in the final one', () => {
   const { dir, r } = gen('dockerfile-prune', ['--yes', '--no-install', '--postgres', '--docker']);
   assert.equal(r.status, 0, r.stderr);
-  const df = read(dir, 'Dockerfile');
+  const df = read(dir, 'Dockerfile').split('\r\n').join('\n'); // CRLF on Windows checkouts
   const [buildStage, finalStage] = df.split(/\nFROM node:22-alpine\n/);
   assert.ok(!buildStage.includes('npm prune'), 'build stage keeps dev dependencies (migrate service needs prisma)');
   assert.ok(finalStage.includes('npm prune --omit=dev'));
