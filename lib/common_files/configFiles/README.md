@@ -59,3 +59,7 @@ Logs go to stdout: JSON when `NODE_ENV=production`, readable text otherwise.
 #{{docker}} docker build -t app .
 #{{docker}} docker run --env-file .env -p 3000:3000 app
 #{{docker}} ```
+#{{docker}} With a database, the whole stack (database, migrations when there are any, and the app) runs with one command:
+#{{docker}} ```bash
+#{{docker}} docker compose up --build
+#{{docker}} ```

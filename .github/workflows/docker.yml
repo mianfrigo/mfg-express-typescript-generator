@@ -1,0 +1,50 @@
+name: docker
+on: [push, pull_request]
+jobs:
+  stack:
+    # Generates a --docker app, runs "docker compose up --build" (database,
+    # migrations, app) and drives register/login/list over HTTP.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [postgres, mongo]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Generate the app
+        run: node bin/cli.js "$RUNNER_TEMP/app" --yes --no-install --${{ matrix.db }} --auth --docker
+      - name: Build and start the stack
+        working-directory: ${{ runner.temp }}/app
+        run: docker compose up -d --build
+      - name: Wait for readiness
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/api/v1/ready; then exit 0; fi
+            sleep 2
+          done
+          echo "app never became ready" >&2
+          exit 1
+      - name: Register, log in, list
+        run: |
+          base=http://localhost:3000/api/v1
+          json='content-type: application/json'
+          curl -fsS -X POST "$base/auth/register" -H "$json" \
+            -d '{"firstName":"Ada","lastName":"Lovelace","email":"ada@example.com","password":"password123"}'
+          token=$(curl -fsS -X POST "$base/auth" -H "$json" \
+            -d '{"email":"ada@example.com","password":"password123"}' \
+            | node -pe 'JSON.parse(require("fs").readFileSync(0, "utf8")).authToken')
+          test -n "$token"
+          curl -fsS -H "authorization: Bearer $token" "$base/user?limit=1" \
+            | node -e 'const b = JSON.parse(require("fs").readFileSync(0, "utf8")); if (b.meta.total < 1) process.exit(1); console.log(JSON.stringify(b.meta))'
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/user")" = 401
+      - name: Compose logs (on failure)
+        if: failure()
+        working-directory: ${{ runner.temp }}/app
+        run: docker compose logs
+      - name: Tear down
+        if: always()
+        working-directory: ${{ runner.temp }}/app
+        run: docker compose down -v

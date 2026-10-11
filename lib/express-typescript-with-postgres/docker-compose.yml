@@ -1,4 +1,5 @@
 # Local PostgreSQL matching DATABASE_URL in .env:  docker compose up -d
+#{{docker}} # Whole stack (migrations + app + database):  docker compose up --build
 services:
   db:
     image: postgres:17-alpine
@@ -10,6 +11,32 @@ services:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
+#{{docker}}     healthcheck:
+#{{docker}}       test: ['CMD-SHELL', 'pg_isready -U postgres -d app']
+#{{docker}}       interval: 3s
+#{{docker}}       timeout: 3s
+#{{docker}}       retries: 20
+#{{docker}}   migrate:
+#{{docker}}     # one-shot: applies the committed migrations (the build stage keeps the prisma CLI)
+#{{docker}}     build:
+#{{docker}}       context: .
+#{{docker}}       target: build
+#{{docker}}     command: npx prisma migrate deploy
+#{{docker}}     environment:
+#{{docker}}       DATABASE_URL: postgresql://postgres:postgres@db:5432/app
+#{{docker}}     depends_on:
+#{{docker}}       db:
+#{{docker}}         condition: service_healthy
+#{{docker}}   app:
+#{{docker}}     build: .
+#{{docker}}     env_file: .env
+#{{docker}}     environment:
+#{{docker}}       DATABASE_URL: postgresql://postgres:postgres@db:5432/app
+#{{docker}}     ports:
+#{{docker}}       - '3000:3000'
+#{{docker}}     depends_on:
+#{{docker}}       migrate:
+#{{docker}}         condition: service_completed_successfully
 
 volumes:
   pgdata:
