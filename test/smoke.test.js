@@ -336,7 +336,7 @@ async function checkDbCrud(dir, flags, adminUrl) {
     const seededList = await call('GET', '/user', undefined, token);
     assert.equal(seededList.status, 200);
     for (const e of ['ada@example.com', 'grace@example.com', 'alan@example.com']) {
-      assert.equal(seededList.body.filter((u) => u.email === e).length, 1, `${e} seeded exactly once`);
+      assert.equal(seededList.body.data.filter((u) => u.email === e).length, 1, `${e} seeded exactly once`);
     }
 
     const made = await call('POST', '/user', { firstName: 'Ada', lastName: 'L', email: 'ada@x.co', extra: 1 }, token);
@@ -351,8 +351,18 @@ async function checkDbCrud(dir, flags, adminUrl) {
 
     const list = await call('GET', '/user', undefined, token);
     assert.equal(list.status, 200);
-    assert.ok(list.body.some((u) => u.email === 'ada@x.co'));
-    assert.ok(list.body.every((u) => u.password === undefined));
+    assert.ok(list.body.data.some((u) => u.email === 'ada@x.co'));
+    assert.ok(list.body.data.every((u) => u.password === undefined));
+    assert.ok(list.body.meta.total >= 4);
+
+    const p1 = await call('GET', '/user?limit=2&page=1', undefined, token);
+    const p2 = await call('GET', '/user?limit=2&page=2', undefined, token);
+    assert.equal(p1.body.data.length, 2);
+    assert.ok(p2.body.data.length >= 1);
+    assert.equal(p1.body.meta.limit, 2);
+    assert.ok(p1.body.meta.totalPages >= 2);
+    const ids = [...p1.body.data, ...p2.body.data].map(idOf);
+    assert.equal(new Set(ids).size, ids.length, 'pages do not overlap');
 
     const one = await call('GET', `/user/${idOf(made.body)}`, undefined, token);
     assert.equal(one.status, 200);
@@ -390,7 +400,9 @@ async function checkDbCrud(dir, flags, adminUrl) {
 // The CI workflow's env block must be enough to run the app's own tests:
 // delete .env (not in the repo), then run npm test with only those variables.
 function checkCiEnv(dir) {
-  const yml = readFileSync(path.join(dir, '.github/workflows/ci.yml'), 'utf8');
+  const yml = readFileSync(path.join(dir, '.github/workflows/ci.yml'), 'utf8')
+    .split('\r\n')
+    .join('\n'); // templates are CRLF in Windows checkouts
   const block = yml.split('\n    env:\n')[1].split('\n    steps:')[0];
   const ciEnv = Object.fromEntries(
     block
@@ -434,6 +446,19 @@ async function checkHealthAndShutdown(dir, openapi = false) {
     const ready = await fetch(`http://127.0.0.1:${port}/api/v1/ready`);
     assert.equal(ready.status, 200);
     assert.deepEqual(await ready.json(), { status: 'ready' });
+    const api = `http://127.0.0.1:${port}/api/v1`;
+    const paged = await (await fetch(`${api}/user?limit=5&page=2`)).json();
+    assert.equal(paged.data.length, 5);
+    assert.equal(paged.data[0].id, 6, 'page 2 of 5 starts at user 6');
+    assert.deepEqual(paged.meta, { page: 2, limit: 5, total: 20, totalPages: 4 });
+    const clamp = await (await fetch(`${api}/user?limit=1000&page=0`)).json();
+    assert.equal(clamp.meta.limit, 100, 'limit is capped');
+    assert.equal(clamp.meta.page, 1, 'page is at least 1');
+    const junk = await (await fetch(`${api}/user?limit=abc&page=xyz`)).json();
+    assert.deepEqual([junk.meta.limit, junk.meta.page], [20, 1], 'junk falls back to defaults');
+    const past = await (await fetch(`${api}/user?page=99`)).json();
+    assert.equal(past.data.length, 0);
+    assert.equal(past.meta.total, 20);
     assert.match(stdout, /connected to port/, 'logs go to stdout');
     assert.ok(!existsSync(path.join(dir, 'logs')), 'no log files are written');
     if (openapi) {
@@ -1007,4 +1032,40 @@ test('db:seed: script + seed file per database, password only with --auth', () =
   assert.ok(!read(none.dir, 'README.md').includes('db:seed'));
   assert.ok(read(pga.dir, 'README.md').includes('db:seed'));
   assert.ok(read(pga.dir, 'README.md').includes('password123'));
+});
+
+test('pagination: helper + every list handler pages and counts', () => {
+  const base = gen('page-base', ['--yes', '--no-install']);
+  assert.equal(base.r.status, 0, base.r.stderr);
+  const helper = read(base.dir, 'src/utils/pagination.ts');
+  assert.ok(helper.includes('parsePaging') && helper.includes('pageOf'));
+  assert.ok(helper.includes('100'), 'limit is capped');
+  const bc = read(base.dir, 'src/controllers/user.controller.ts');
+  assert.ok(bc.includes('parsePaging(req.query)') && bc.includes('pageOf('));
+
+  const mongo = gen('page-mongo', ['--yes', '--no-install', '--mongo']);
+  const mc = read(mongo.dir, 'src/controllers/user.controller.ts');
+  assert.ok(mc.includes('countDocuments()') && mc.includes('.skip(skip).limit(limit)'));
+  assert.ok(mc.includes('sort({ _id: 1 })'), 'stable order');
+
+  const mongoRx = gen('page-mongo-rx', ['--yes', '--no-install', '--mongo', '--rxjs']);
+  const mrc = read(mongoRx.dir, 'src/controllers/user.controller.ts');
+  assert.ok(mrc.includes('forkJoin') && mrc.includes('countDocuments()'));
+
+  const pg = gen('page-pg', ['--yes', '--no-install', '--postgres']);
+  const pc = read(pg.dir, 'src/controllers/user.controller.ts');
+  assert.ok(pc.includes('prisma.$transaction') && pc.includes('prisma.user.count()'));
+  assert.ok(pc.includes("orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]"), 'stable order');
+
+  const pgRx = gen('page-pg-rx', ['--yes', '--no-install', '--postgres', '--rxjs']);
+  const prc = read(pgRx.dir, 'src/controllers/user.controller.ts');
+  assert.ok(prc.includes('prisma.$transaction') && prc.includes('pageOf('));
+});
+
+test('pagination is documented: OpenAPI parameters and README', () => {
+  const { dir, r } = gen('page-docs', ['--yes', '--no-install', '--zod', '--openapi']);
+  assert.equal(r.status, 0, r.stderr);
+  const spec = read(dir, 'src/openapi.ts');
+  assert.ok(spec.includes("name: 'page'") && spec.includes("name: 'limit'"));
+  assert.ok(read(dir, 'README.md').includes('?page=') && read(dir, 'README.md').includes('{ data, meta }'));
 });

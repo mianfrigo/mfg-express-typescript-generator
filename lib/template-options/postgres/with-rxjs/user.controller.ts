@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import createHttpError from 'http-errors';
 import { from, map } from 'rxjs';
 import { prisma } from '../config/prisma';
+import { pageOf, parsePaging } from '../utils/pagination';
 
 type UserInput = { firstName: string; lastName: string; email: string };
 
@@ -34,8 +35,21 @@ export default class UserController {
     ).subscribe(send(res, next, 201));
   };
 
-  getUsers = (_req: Request, res: Response, next: NextFunction) => {
-    from(prisma.user.findMany({ omit })).subscribe(send(res, next));
+  getUsers = (req: Request, res: Response, next: NextFunction) => {
+    const { page, limit, skip } = parsePaging(req.query);
+    from(
+      prisma.$transaction([
+        prisma.user.findMany({
+          skip,
+          take: limit,
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          omit,
+        }),
+        prisma.user.count(),
+      ])
+    )
+      .pipe(map(([users, total]) => pageOf(users, total, page, limit)))
+      .subscribe(send(res, next));
   };
 
   getSingleUser = (req: Request, res: Response, next: NextFunction) => {

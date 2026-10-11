@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import createHttpError from 'http-errors';
 import { prisma } from '../config/prisma';
+import { pageOf, parsePaging } from '../utils/pagination';
 
 type UserInput = { firstName: string; lastName: string; email: string };
 
@@ -25,8 +26,18 @@ export default class UserController {
     res.status(201).json(user);
   };
 
-  getUsers = async (_req: Request, res: Response) => {
-    res.status(200).json(await prisma.user.findMany({ omit }));
+  getUsers = async (req: Request, res: Response) => {
+    const { page, limit, skip } = parsePaging(req.query);
+    const [users, total] = await prisma.$transaction([
+      prisma.user.findMany({
+        skip,
+        take: limit,
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        omit,
+      }),
+      prisma.user.count(),
+    ]);
+    res.status(200).json(pageOf(users, total, page, limit));
   };
 
   getSingleUser = async (req: Request, res: Response) => {
