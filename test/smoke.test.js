@@ -33,6 +33,7 @@ const has = (dir, f) => existsSync(path.join(dir, f));
 test('base app', () => {
   const { dir, r } = gen('base', ['--yes', '--no-install']);
   assert.equal(r.status, 0, r.stderr);
+  assert.ok(!r.stderr.includes('DEP0190'), 'no shell+args deprecation warning');
   for (const f of ['src/index.ts', 'src/db/data.ts', '.gitignore', '.env']) {
     assert.ok(has(dir, f), `missing ${f}`);
   }
@@ -148,6 +149,7 @@ test('templates avoid removed/unsafe patterns', () => {
     '...req.body',
     "'process.env.SECRET_KEY'",
     ': any',
+    'new: true',
   ]) {
     assert.ok(!ts.includes(bad), `found ${bad}`);
   }
@@ -167,11 +169,10 @@ const MATRIX = {
 };
 
 const npm = (args, cwd) => {
-  const r = spawnSync('npm', args, {
-    cwd,
-    encoding: 'utf8',
-    shell: process.platform === 'win32',
-  });
+  const win = process.platform === 'win32';
+  const r = win
+    ? spawnSync(['npm', ...args].join(' '), { cwd, encoding: 'utf8', shell: true })
+    : spawnSync('npm', args, { cwd, encoding: 'utf8' });
   assert.equal(r.status, 0, `npm ${args.join(' ')}\n${r.stdout}\n${r.stderr}`);
 };
 
@@ -222,3 +223,33 @@ for (const [name, flags] of [
     assert.ok(!ctl.includes("?? ''"), 'compare must not short-circuit on empty hash');
   });
 }
+
+test('in-memory create rejects an empty body with 400, not 500', () => {
+  const { dir, r } = gen('emptybody', ['--yes', '--no-install']);
+  assert.equal(r.status, 0, r.stderr);
+  const c = read(dir, 'src/controllers/user.controller.ts');
+  assert.ok(c.includes('req.body ?? {}'));
+  assert.ok(c.includes('BadRequest'));
+});
+
+test('cd hint is relative to the current directory for nested targets', () => {
+  const r = spawnSync(
+    process.execPath,
+    [bin, path.join('nested', 'app'), '--yes', '--no-install'],
+    { encoding: 'utf8', cwd: tmp }
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(r.stdout.includes(`cd ${path.join('nested', 'app')}`), r.stdout);
+});
+
+test('failed install says files were generated and how to recover', () => {
+  const dir = path.join(tmp, 'failinstall');
+  const r = spawnSync(process.execPath, [bin, dir, '--yes'], {
+    encoding: 'utf8',
+    env: { ...process.env, PATH: '', Path: '' },
+  });
+  assert.equal(r.status, 1);
+  assert.ok(has(dir, 'package.json'), 'files stay on disk');
+  assert.match(r.stderr, /generated/);
+  assert.match(r.stderr, /install/);
+});

@@ -34,7 +34,7 @@ export default class UserController {
     const user = await UserModel.findByIdAndUpdate(
       req.params.id,
       pick(req.body),
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
     if (!user) throw new createHttpError.NotFound();
     res.status(200).json(user);

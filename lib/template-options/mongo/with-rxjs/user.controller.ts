@@ -44,7 +44,7 @@ export default class UserController {
   updateUser = (req: Request, res: Response, next: NextFunction) => {
     from(
       UserModel.findByIdAndUpdate(req.params.id, pick(req.body), {
-        new: true,
+        returnDocument: 'after',
         runValidators: true,
       })
     )
