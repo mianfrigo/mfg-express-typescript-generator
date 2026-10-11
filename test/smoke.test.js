@@ -178,6 +178,41 @@ function checkRequireAuth(dir) {
   assert.equal(r.stdout.trim(), '[401,401,"ok",401]');
 }
 
+// compiled validate middleware + schemas, no MongoDB needed
+function checkValidate(dir, flags) {
+  const mongo = flags.includes('--mongo');
+  const good = mongo
+    ? { firstName: 'Ada', lastName: 'L', email: 'a@b.co', extra: 1 }
+    : { first_name: 'Ada', last_name: 'L', email: 'a@b.co', extra: 1 };
+  const code = `
+    const { validate } = require('./dist/middleware/validate.js');
+    const { createUserSchema } = require('./dist/validation/user.validation.js');
+    const mw = validate(createUserSchema);
+    const run = (body) => { const req = { body }; let err; mw(req, {}, (e) => { err = e; }); return { err, body: req.body }; };
+    const ok = run(${JSON.stringify(good)});
+    const bad = run({ email: 'nope' });
+    const out = {
+      okPasses: !ok.err,
+      stripsUnknown: !('extra' in ok.body),
+      badStatus: bad.err && bad.err.status,
+      badNamesField: !!bad.err && bad.err.message.includes('email'),
+    };
+    if (${JSON.stringify(flags.includes('--auth'))}) {
+      const { loginSchema } = require('./dist/validation/auth.validation.js');
+      const r = loginSchema.safeParse({ email: { $ne: null }, password: 'x' });
+      out.rejectsObjectEmail = !r.success;
+    }
+    console.log(JSON.stringify(out));`;
+  const r = spawnSync(process.execPath, ['-e', code], { cwd: dir, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const out = JSON.parse(r.stdout.trim());
+  assert.equal(out.okPasses, true);
+  assert.equal(out.stripsUnknown, true);
+  assert.equal(out.badStatus, 400);
+  assert.equal(out.badNamesField, true);
+  if (flags.includes('--auth')) assert.equal(out.rejectsObjectEmail, true);
+}
+
 // boots the compiled base app, hits /health, then SIGTERM must exit 0
 async function checkHealthAndShutdown(dir) {
   const port = 39000 + Math.floor(Math.random() * 500);
@@ -214,7 +249,9 @@ const MATRIX = {
   'full-auth': ['--mongo', '--auth'],
   'full-rxjs': ['--mongo', '--rxjs'],
   'full-test': ['--test'],
-  'full-all': ['--mongo', '--auth', '--rxjs', '--limiter', '--test', '--docker'],
+  'full-zod': ['--zod'],
+  'full-zod-mongo-auth': ['--zod', '--mongo', '--auth'],
+  'full-all': ['--mongo', '--auth', '--rxjs', '--limiter', '--test', '--docker', '--zod'],
 };
 
 const npm = (args, cwd) => {
@@ -235,6 +272,7 @@ for (const [name, flags] of Object.entries(MATRIX)) {
       npm(['run', 'build'], dir);
       npm(['run', 'lint'], dir);
       if (flags.includes('--test')) npm(['test'], dir);
+      if (flags.includes('--zod')) checkValidate(dir, flags);
       if (flags.includes('--auth')) checkRequireAuth(dir);
       if (name === 'full-base') await checkHealthAndShutdown(dir);
     }
@@ -457,4 +495,40 @@ test('package.json repository.url is already in normalized git+https form', () =
     rootPkg.repository.url,
     /^git\+https:\/\/github\.com\/[\w.-]+\/[\w.-]+\.git$/
   );
+});
+
+test('--zod (in-memory): validate middleware + snake_case schemas wired into routes', () => {
+  const { dir, r } = gen('zod-base', ['--yes', '--no-install', '--zod']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(pkg(dir).dependencies.zod);
+  assert.ok(has(dir, 'src/middleware/validate.ts'));
+  const schema = read(dir, 'src/validation/user.validation.ts');
+  assert.ok(schema.includes('first_name') && !schema.includes('firstName'));
+  const route = read(dir, 'src/routes/user.route.ts');
+  assert.ok(route.includes('validate(createUserSchema)'));
+  assert.ok(route.includes('validate(updateUserSchema)'));
+  assert.ok(!has(dir, 'src/validation/auth.validation.ts'));
+});
+
+test('--zod (mongo + auth + limiter): camelCase schemas, auth schemas, no marker left', () => {
+  const { dir, r } = gen('zod-all', ['--yes', '--no-install', '--zod', '--mongo', '--auth', '--limiter']);
+  assert.equal(r.status, 0, r.stderr);
+  const schema = read(dir, 'src/validation/user.validation.ts');
+  assert.ok(schema.includes('firstName') && !schema.includes('first_name'));
+  assert.ok(has(dir, 'src/validation/auth.validation.ts'));
+  const auth = read(dir, 'src/routes/auth.route.ts');
+  assert.ok(auth.includes('validate(loginSchema)'));
+  assert.ok(auth.includes('validate(registerSchema)'));
+  assert.ok(read(dir, 'src/routes/user.route.ts').includes('mainLimiter, validate(createUserSchema)'));
+  assert.ok(!allTs(dir).includes('{{'), 'no template marker left');
+});
+
+test('without --zod: no zod dependency, files or validate calls', () => {
+  const { dir, r } = gen('zod-off', ['--yes', '--no-install', '--mongo', '--auth']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(pkg(dir).dependencies.zod, undefined);
+  assert.ok(!has(dir, 'src/middleware/validate.ts'));
+  assert.ok(!has(dir, 'src/validation'));
+  const ts = allTs(dir);
+  assert.ok(!ts.includes('validate(') && !ts.includes('{{'));
 });

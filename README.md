@@ -24,6 +24,7 @@ Without flags you get a few yes/no prompts. Skip them with flags:
 | `--auth` | Add `POST /api/v1/auth/register` and `POST /api/v1/auth` (JWT login), and require a `Bearer` token on `/api/v1/user`; needs `--mongo`; writes a random `SECRET_KEY` to `.env` |
 | `--rxjs` | Use rxjs instead of promises in controllers (needs `--mongo`) |
 | `--test` | Add vitest + supertest and an example test in `test/` (`npm test`) |
+| `--zod` | Validate request bodies with zod (`src/validation/`, `validate` middleware); invalid input is a 400 naming each field |
 | `--docker` | Add a multi-stage `Dockerfile` and `.dockerignore` (run with `docker run --env-file .env`) |
 | `--pm npm\|pnpm\|yarn` | Package manager for install (default: the one that launched the CLI, else `npm`) |
 | `--git`, `--no-git` | Force or skip `git init` (default: init unless already inside a repo) |
