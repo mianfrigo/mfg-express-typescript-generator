@@ -1,5 +1,5 @@
+import 'dotenv/config';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -8,10 +8,6 @@ import logger from './config/logger.config';
 import { handleError, notFound } from './middleware/errorHandler';
 import baseRoutes from './routes';
 
-// dotenv config
-dotenv.config();
-
-// express app
 const app = express();
 
 // Basic middlewares
@@ -28,8 +24,7 @@ app.use('/api/v1', baseRoutes);
 app.use(notFound);
 app.use(handleError);
 
-// connection to server
-const port = process.env.PORT;
+const port = process.env.PORT || 3000;
 
 app.listen(port, () => {
   logger.info(`connected to port ${port}`);

@@ -1,7 +1,13 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -101,4 +107,52 @@ test('--version prints package version', () => {
   });
   assert.equal(r.status, 0);
   assert.ok(r.stdout.includes(rootPkg.version));
+});
+
+const allTs = (dir) =>
+  readdirSync(path.join(dir, 'src'), { recursive: true })
+    .filter((f) => f.endsWith('.ts'))
+    .map((f) => read(dir, path.join('src', f)))
+    .join('\n');
+
+test('generated app uses tsc + tsx, no webpack', () => {
+  const { dir, r } = gen('stack', ['--yes', '--no-install']);
+  assert.equal(r.status, 0, r.stderr);
+  const p = pkg(dir);
+  assert.equal(p.scripts.build, 'tsc');
+  assert.equal(p.scripts.dev, 'tsx watch src/index.ts');
+  for (const f of ['webpack.config.js', 'webpack.dev.config.js', '.eslintrc.json']) {
+    assert.ok(!has(dir, f), `${f} should be gone`);
+  }
+  assert.ok(has(dir, 'eslint.config.mjs'));
+  assert.ok(!read(dir, 'tsconfig.json').includes('strictNullChecks'));
+  assert.match(read(dir, '.gitignore'), /^\.env$/m);
+});
+
+test('templates avoid removed/unsafe patterns', () => {
+  const { dir, r } = gen('clean', [
+    '--yes',
+    '--no-install',
+    '--mongo',
+    '--auth',
+    '--limiter',
+  ]);
+  assert.equal(r.status, 0, r.stderr);
+  const ts = allTs(dir);
+  for (const bad of [
+    'auto-bind',
+    'autoBind',
+    'requiered',
+    'useNewUrlParser',
+    'mongoose-unique-validator',
+    '...req.body',
+    "'process.env.SECRET_KEY'",
+    ': any',
+  ]) {
+    assert.ok(!ts.includes(bad), `found ${bad}`);
+  }
+  assert.ok(ts.includes("typeof email !== 'string'"), 'auth must validate input type');
+  assert.ok(ts.includes("err.name === 'CastError'"), 'CastError must map to 400');
+  assert.ok(ts.includes('11000'), 'duplicate key must map to 409');
+  assert.ok(ts.includes('limit: 100'), 'rate-limit v8 option name');
 });

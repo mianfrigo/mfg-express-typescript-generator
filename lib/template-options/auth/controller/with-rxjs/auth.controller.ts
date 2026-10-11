@@ -1,59 +1,50 @@
-import autoBind from 'auto-bind';
-import { NextFunction, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import { forkJoin, from, of, throwError } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
-import UserModel from '../models/user.schema';
 import bcrypt from 'bcryptjs';
+import { NextFunction, Request, Response } from 'express';
 import createHttpError from 'http-errors';
-
-const User = UserModel;
+import jwt from 'jsonwebtoken';
+import { from, map, switchMap } from 'rxjs';
+import UserModel from '../models/user.schema';
 
 export default class AuthController {
-  constructor() {
-    autoBind(this);
-  }
+  authUser = (req: Request, res: Response, next: NextFunction) => {
+    const { email, password } = req.body ?? {};
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      next(new createHttpError.BadRequest('email and password are required'));
+      return;
+    }
+    const secret = process.env.SECRET_KEY;
+    if (!secret) {
+      next(new Error('SECRET_KEY is not set'));
+      return;
+    }
 
-  authUser(req: Request, res: Response, next: NextFunction) {
-    const { email, password } = req.body;
-    from(User.findOne({ email: email }))
+    from(UserModel.findOne({ email }).select('+password'))
       .pipe(
-        switchMap((user: any) => {
-          if (!user) {
-            return throwError(() => new createHttpError.NotFound());
-          }
-          return forkJoin([
-            of(user),
-            from(bcrypt.compare(password, user.password)),
-          ]);
+        switchMap((user) =>
+          // compare against '' when user is missing: same failure path
+          from(bcrypt.compare(password, user?.password ?? '')).pipe(
+            map((ok) => {
+              if (!user || !ok) {
+                throw new createHttpError.Unauthorized('Invalid credentials');
+              }
+              return user;
+            })
+          )
+        ),
+        map((user) => {
+          const token = jwt.sign(
+            { auth_id: user._id, email: user.email },
+            secret,
+            { expiresIn: '24h' }
+          );
+          const { exp } = jwt.decode(token) as { exp: number };
+          const { password: _hash, ...authUser } = user.toObject();
+          return { authToken: token, authToken_exp: exp, auth_user: authUser };
         })
       )
       .subscribe({
-        next: ([user, result]) => {
-          if (!result) {
-            res.status(401);
-            next(new createHttpError.Forbidden('Wrong password'));
-            return;
-          }
-          const userToken = {
-            auth_id: user._id,
-            email: user.email,
-          };
-          const token = jwt.sign(userToken, process.env.SECRET_KEY, {
-            expiresIn: '24h',
-          });
-          const decoded: any = jwt.decode(token);
-          const authToken = {
-            authToken: token,
-            authToken_exp: decoded.exp,
-            auth_user: user,
-          };
-
-          res.status(200).json(authToken);
-        },
-        error: (err) => {
-          next(err);
-        },
+        next: (body) => res.status(200).json(body),
+        error: next,
       });
-  }
+  };
 }

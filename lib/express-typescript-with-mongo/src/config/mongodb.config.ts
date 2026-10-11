@@ -1,19 +1,9 @@
 import mongoose from 'mongoose';
 import logger from './logger.config';
 
-export default class MongoDb {
-  constructor() {}
-
-  connect() {
-    mongoose
-      .connect(process.env.MONGO_DB, {
-        useNewUrlParser: true,
-      })
-      .then(() => {
-        logger.info('MongoDb connected');
-      })
-      .catch((error) => {
-        logger.error(error);
-      });
-  }
+export default async function connectMongo() {
+  const uri = process.env.MONGO_DB;
+  if (!uri) throw new Error('MONGO_DB is not set. Add it to your .env file.');
+  await mongoose.connect(uri);
+  logger.info('MongoDb connected');
 }

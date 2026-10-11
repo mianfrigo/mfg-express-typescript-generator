@@ -1,9 +1,8 @@
-import express, { Router } from 'express';
+import { Router } from 'express';
 import AuthController from '../controllers/auth.controller';
 
 const authController = new AuthController();
-// eslint-disable-next-line new-cap
-const router: Router = express.Router();
+const router = Router();
 
 router.post('/', authController.authUser);
 
