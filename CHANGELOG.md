@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.2.0] - 2026-10-11
+
+### Added
+- `--zod`: request validation with zod. A `validate` middleware and per-app
+  schemas in `src/validation/`; invalid bodies get a 400 naming each field,
+  valid bodies are parsed (unknown keys stripped). Login and register schemas
+  with `--auth`.
+- `--openapi` (needs `--zod`): Swagger UI at `/api/v1/docs` and the spec at
+  `/api/v1/openapi.json`, built from the zod schemas (OpenAPI 3.1).
+
+### Fixed
+- `repository.url` is stored in the normalized `git+https` form, so
+  `npm publish` no longer prints an auto-correction warning.
+
+### Repo
+- GitHub Actions: `actions/setup-node` 4 to 7.
+
 ## [2.1.0] - 2026-10-11
 
 ### Added
