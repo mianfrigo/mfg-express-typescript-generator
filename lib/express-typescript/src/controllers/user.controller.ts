@@ -1,10 +1,13 @@
 import { Request, Response } from 'express';
 import createHttpError from 'http-errors';
 import users from '../db/data';
+import { pageOf, parsePaging } from '../utils/pagination';
 
 export default class UserController {
-  getUsers = (_req: Request, res: Response) => {
-    res.status(200).json(users);
+  getUsers = (req: Request, res: Response) => {
+    const { page, limit, skip } = parsePaging(req.query);
+    const slice = users.slice(skip, skip + limit);
+    res.status(200).json(pageOf(slice, users.length, page, limit));
   };
 
   getSingleUser = (req: Request, res: Response) => {

@@ -20,6 +20,7 @@ All under `/api/v1`.
 - `GET /health` — liveness.
 - `GET /ready` — readiness (checks the database when there is one).
 - `GET /user`, `GET /user/:id`, `POST /user`, `PUT /user/:id`, `DELETE /user/:id`
+- `GET /user?page=1&limit=20` returns `{ data, meta }` where `meta` is `{ page, limit, total, totalPages }`; `limit` defaults to 20 and is capped at 100.
 #{{auth}} - `POST /auth/register` and `POST /auth` — register and log in (JWT). The `/user` routes need `Authorization: Bearer <token>`.
 #{{openapi}} - `GET /docs` (Swagger UI) and `GET /openapi.json`.
 

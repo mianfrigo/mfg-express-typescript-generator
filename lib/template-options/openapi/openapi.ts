@@ -10,6 +10,19 @@ const body = (schema: z.ZodType) => ({
   content: { 'application/json': { schema: z.toJSONSchema(schema) } },
 });
 
+const paging = [
+  {
+    name: 'page',
+    in: 'query',
+    schema: { type: 'integer', minimum: 1, default: 1 },
+  },
+  {
+    name: 'limit',
+    in: 'query',
+    schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+  },
+];
+
 const id = {
   name: 'id',
   in: 'path',
@@ -47,8 +60,11 @@ export const openapiDocument = {
     },
     '/user': {
       get: {
-        summary: 'List users',
-        responses: { 200: { description: 'Users' } },
+        summary: 'List users (paginated)',
+        parameters: paging,
+        responses: {
+          200: { description: 'Page of users: { data, meta: { page, limit, total, totalPages } }' },
+        },
       },
       post: {
         summary: 'Create a user',

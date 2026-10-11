@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import createHttpError from 'http-errors';
 import UserModel from '../models/user.schema';
+import { pageOf, parsePaging } from '../utils/pagination';
 
 const FIELDS = ['firstName', 'lastName', 'email'];
 const pick = (body: Record<string, unknown> = {}) =>
@@ -12,8 +13,13 @@ export default class UserController {
     res.status(201).json(user);
   };
 
-  getUsers = async (_req: Request, res: Response) => {
-    res.status(200).json(await UserModel.find());
+  getUsers = async (req: Request, res: Response) => {
+    const { page, limit, skip } = parsePaging(req.query);
+    const [users, total] = await Promise.all([
+      UserModel.find().sort({ _id: 1 }).skip(skip).limit(limit),
+      UserModel.countDocuments(),
+    ]);
+    res.status(200).json(pageOf(users, total, page, limit));
   };
 
   getSingleUser = async (req: Request, res: Response) => {

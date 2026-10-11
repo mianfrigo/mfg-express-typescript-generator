@@ -1,7 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import createHttpError from 'http-errors';
-import { from, map } from 'rxjs';
+import { forkJoin, from, map } from 'rxjs';
 import UserModel from '../models/user.schema';
+import { pageOf, parsePaging } from '../utils/pagination';
 
 const FIELDS = ['firstName', 'lastName', 'email'];
 const pick = (body: Record<string, unknown> = {}) =>
@@ -22,8 +23,14 @@ export default class UserController {
     from(UserModel.create(pick(req.body))).subscribe(send(res, next, 201));
   };
 
-  getUsers = (_req: Request, res: Response, next: NextFunction) => {
-    from(UserModel.find()).subscribe(send(res, next));
+  getUsers = (req: Request, res: Response, next: NextFunction) => {
+    const { page, limit, skip } = parsePaging(req.query);
+    forkJoin([
+      from(UserModel.find().sort({ _id: 1 }).skip(skip).limit(limit).exec()),
+      from(UserModel.countDocuments().exec()),
+    ])
+      .pipe(map(([users, total]) => pageOf(users, total, page, limit)))
+      .subscribe(send(res, next));
   };
 
   getSingleUser = (req: Request, res: Response, next: NextFunction) => {
