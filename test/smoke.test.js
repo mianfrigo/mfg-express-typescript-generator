@@ -211,7 +211,8 @@ const MATRIX = {
   'full-mongo': ['--mongo'],
   'full-auth': ['--mongo', '--auth'],
   'full-rxjs': ['--mongo', '--rxjs'],
-  'full-all': ['--mongo', '--auth', '--rxjs', '--limiter'],
+  'full-test': ['--test'],
+  'full-all': ['--mongo', '--auth', '--rxjs', '--limiter', '--test', '--docker'],
 };
 
 const npm = (args, cwd) => {
@@ -231,6 +232,7 @@ for (const [name, flags] of Object.entries(MATRIX)) {
       assert.equal(r.status, 0, r.stderr);
       npm(['run', 'build'], dir);
       npm(['run', 'lint'], dir);
+      if (flags.includes('--test')) npm(['test'], dir);
       if (flags.includes('--auth')) checkRequireAuth(dir);
       if (name === 'full-base') await checkHealthAndShutdown(dir);
     }
@@ -350,4 +352,27 @@ test('--docker adds Dockerfile and .dockerignore; absent otherwise', () => {
   }
   const off = gen('dock-off', ['--yes', '--no-install']);
   assert.ok(!has(off.dir, 'Dockerfile') && !has(off.dir, '.dockerignore'));
+});
+
+test('app.ts is split from index.ts so tests never open a port', () => {
+  const { dir, r } = gen('split', ['--yes', '--no-install']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(read(dir, 'src/app.ts').includes('export default app'));
+  assert.ok(!read(dir, 'src/app.ts').includes('listen('));
+  const idx = read(dir, 'src/index.ts');
+  assert.ok(idx.includes("from './app'") && idx.includes('.listen('));
+});
+
+test('--test adds vitest + supertest, a test script and an example test', () => {
+  const on = gen('test-on', ['--yes', '--no-install', '--test']);
+  assert.equal(on.r.status, 0, on.r.stderr);
+  const p = pkg(on.dir);
+  assert.equal(p.scripts.test, 'vitest run');
+  assert.ok(p.devDependencies.vitest && p.devDependencies.supertest);
+  assert.ok(p.devDependencies['@types/supertest']);
+  const t = read(on.dir, 'test/health.test.ts');
+  assert.ok(t.includes("from '../src/app'") && t.includes('/api/v1/health'));
+  const off = gen('test-off', ['--yes', '--no-install']);
+  assert.equal(pkg(off.dir).scripts.test, undefined);
+  assert.ok(!has(off.dir, 'test'));
 });

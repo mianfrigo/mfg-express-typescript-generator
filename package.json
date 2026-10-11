@@ -37,6 +37,6 @@
   },
   "homepage": "https://github.com/mianfrigo/mfg-express-typescript-generator#readme",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test test/options.test.js test/smoke.test.js"
   }
 }
