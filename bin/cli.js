@@ -29,7 +29,7 @@ try {
   const run = options.pm === 'npm' ? 'npm run' : options.pm;
   console.log(`
 Done. Next:
-  cd ${path.basename(dest)}
+  cd ${path.relative(process.cwd(), dest) || '.'}
   ${run} dev     start dev server (tsx watch)
   ${run} build   compile to dist/
   ${options.pm} start   run compiled server`);

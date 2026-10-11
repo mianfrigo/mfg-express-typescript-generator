@@ -14,7 +14,12 @@ export default class UserController {
   };
 
   createUsers = (req: Request, res: Response) => {
-    const { first_name, last_name, email, gender } = req.body;
+    const { first_name, last_name, email, gender } = req.body ?? {};
+    if (![first_name, last_name, email].every((v) => typeof v === 'string')) {
+      throw new createHttpError.BadRequest(
+        'first_name, last_name and email are required'
+      );
+    }
     const user = {
       id: users.length + 1,
       first_name,
