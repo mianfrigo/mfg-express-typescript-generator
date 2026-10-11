@@ -8,6 +8,7 @@ Generated with [@mianfrigo/express-typescript-generator](https://www.npmjs.com/p
 - `npm run build` — compile to `dist/` with `tsc`.
 - `npm start` — run the compiled server.
 - `npm run lint` — ESLint (flat config).
+#{{db}} - `npm run db:seed` — insert sample users (development only; safe to re-run).
 #{{test}} - `npm test` — vitest + supertest (tests live in `test/`).
 #{{postgres}} - `npm run db:migrate` — create and apply a migration after editing `prisma/schema.prisma`.
 #{{postgres}} - `npm run db:deploy` — apply the committed migrations.
@@ -46,6 +47,8 @@ Logs go to stdout: JSON when `NODE_ENV=production`, readable text otherwise.
 #{{postgres}} npm run db:deploy      # apply the committed migration
 #{{postgres}} npm run dev
 #{{postgres}} ```
+
+#{{auth}} Seeded users (`ada@example.com`, `grace@example.com`, `alan@example.com`) use the password `password123`: development only, never use it in production.
 
 #{{ci}} ## CI
 #{{ci}} `.github/workflows/ci.yml` runs install, lint, build and tests on every push to `main` and on pull requests.
