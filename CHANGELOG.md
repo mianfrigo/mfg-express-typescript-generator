@@ -1,5 +1,36 @@
 # Changelog
 
+## [2.4.0] - 2026-10-11
+
+### Added
+- `--ci`: a GitHub Actions workflow (`.github/workflows/ci.yml`) running install,
+  lint, build and tests. With `--postgres` it starts a `postgres:17-alpine`
+  service; with `--auth` it sets a CI-only `SECRET_KEY`.
+- `npm run db:seed` for `--mongo` and `--postgres` apps: three sample users,
+  idempotent. With `--auth` they get the password `password123` (development
+  only).
+- `.env.example` with the secret blanked, plus commented `TRUST_PROXY` and
+  `LOG_LEVEL`.
+- `CORS_ORIGINS` (comma-separated allowed origins), `LOG_LEVEL`, and
+  `TRUST_PROXY=<hops>` for apps behind a load balancer.
+- `GET /api/v1/ready`: readiness probe that pings the database and answers 503
+  when it is unreachable (documented in the OpenAPI spec with `--openapi`).
+- The generated README lists only the scripts, endpoints, variables and
+  database steps that apply to the chosen options.
+
+### Changed
+- **Logging goes to stdout** (JSON when `NODE_ENV=production`, readable text
+  otherwise) instead of `logs/*.log` files. Apps no longer write a `logs/`
+  directory; collect output from the process or container as usual.
+- Morgan's own output is suppressed, so each request is logged once.
+- The CORS allow-list is read from `CORS_ORIGINS` instead of being hardcoded
+  (defaults are unchanged: `http://localhost:3000`, `http://localhost:4200`).
+- The Dockerfile no longer needs the log-directory `chown`.
+
+### Repo
+- Runtime checks now run against real databases: PostgreSQL and MongoDB, locally
+  and in the `database` workflow (service containers).
+
 ## [2.3.0] - 2026-10-11
 
 ### Added
