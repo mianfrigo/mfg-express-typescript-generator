@@ -52,4 +52,12 @@ npm test                # fast checks (generates into a temp dir, no install)
 FULL=1 npm test         # also installs, builds and lints every flag combination
 ```
 
+### Releasing
+
+1. Move the changelog entries under a new version heading and bump `version` in `package.json`.
+2. Merge to `main`, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
+3. The `release` workflow checks the tag matches `package.json`, runs `FULL=1 npm test`, and publishes with provenance. It needs an `NPM_TOKEN` repository secret (a granular token with publish rights on the package).
+
+A weekly workflow re-runs `FULL=1 npm test` and lists pinned dependencies that are behind the registry.
+
 MIT

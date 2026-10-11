@@ -422,3 +422,32 @@ test('--here scaffolds into an empty current directory only', () => {
   assert.match(bad.stderr, /empty/);
   assert.ok(!has(full, 'package.json'));
 });
+
+test('release: changelog top entry matches package.json version', () => {
+  const log = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
+  const top = log.match(/^## \[?(\d+\.\d+\.\d+)\]?/m);
+  assert.ok(top, 'CHANGELOG has a version heading');
+  assert.equal(top[1], rootPkg.version);
+});
+
+test('release workflow: tag must match version, tests gate, provenance on', () => {
+  const wf = readFileSync(
+    new URL('../.github/workflows/release.yml', import.meta.url),
+    'utf8'
+  );
+  assert.match(wf, /tags:\s*\n\s*- 'v\*'/);
+  assert.ok(wf.includes('GITHUB_REF_NAME'), 'tag/version comparison');
+  assert.ok(wf.includes('npm test'));
+  assert.ok(wf.includes('--provenance'));
+  assert.ok(wf.includes('id-token: write'));
+  assert.ok(wf.includes('secrets.NPM_TOKEN'));
+});
+
+test('pinned versions are exact (no ranges) so FULL results are reproducible', async () => {
+  const { pinned } = await import('../lib/generate.js');
+  const all = pinned();
+  assert.ok(all.express && all.typescript && all.mongoose);
+  for (const [name, v] of Object.entries(all)) {
+    assert.match(v, /^\d+\.\d+\.\d+$/, `${name} must be pinned exactly`);
+  }
+});
