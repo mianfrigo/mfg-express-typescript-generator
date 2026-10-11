@@ -21,7 +21,7 @@ Without flags you get a few yes/no prompts. Skip them with flags:
 | `-y, --yes` | No prompts; unset options default to off |
 | `--limiter` | Add `express-rate-limit` to routes |
 | `--mongo` | Add MongoDB with mongoose and a `/user` CRUD route |
-| `--auth` | Add `POST /api/v1/auth/register` and `POST /api/v1/auth` (JWT login); needs `--mongo`; writes a random `SECRET_KEY` to `.env` |
+| `--auth` | Add `POST /api/v1/auth/register` and `POST /api/v1/auth` (JWT login), and require a `Bearer` token on `/api/v1/user`; needs `--mongo`; writes a random `SECRET_KEY` to `.env` |
 | `--rxjs` | Use rxjs instead of promises in controllers (needs `--mongo`) |
 | `--pm npm\|pnpm\|yarn` | Package manager for install (default `npm`) |
 | `--no-install` | Skip dependency install |
@@ -33,7 +33,7 @@ Default project name is `express-ts`.
 
 - Express 5, helmet, cors allow-list, morgan + winston logging, `.env` via dotenv.
 - `npm run dev` (tsx watch), `npm run build` (tsc), `npm start`, `npm run lint` (ESLint flat config + prettier).
-- Routes under `/api/v1`. With `--mongo`: edit `MONGO_DB` in `.env` before `npm run dev`.
+- Routes under `/api/v1`, public `GET /api/v1/health`, graceful shutdown on SIGTERM/SIGINT. With `--mongo`: edit `MONGO_DB` in `.env` before `npm run dev`.
 
 ## Migrating from 1.x
 

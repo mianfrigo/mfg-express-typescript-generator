@@ -1,6 +1,6 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdtempSync,
@@ -159,6 +159,52 @@ test('templates avoid removed/unsafe patterns', () => {
   assert.ok(ts.includes('limit: 100'), 'rate-limit v8 option name');
 });
 
+// compiled middleware, real jwt: no MongoDB needed
+function checkRequireAuth(dir) {
+  const code = `
+    const jwt = require('jsonwebtoken');
+    const { requireAuth } = require('./dist/middleware/auth.js');
+    const run = (h) => { let out; requireAuth({ header: () => h }, {}, (e) => { out = e ? e.status : 'ok'; }); return out; };
+    const good = 'Bearer ' + jwt.sign({ a: 1 }, process.env.SECRET_KEY);
+    console.log(JSON.stringify([run(undefined), run('Bearer nope'), run(good), run('Basic abc')]));`;
+  const r = spawnSync(process.execPath, ['-e', code], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: { ...process.env, SECRET_KEY: 'x'.repeat(48) },
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), '[401,401,"ok",401]');
+}
+
+// boots the compiled base app, hits /health, then SIGTERM must exit 0
+async function checkHealthAndShutdown(dir) {
+  const port = 39000 + Math.floor(Math.random() * 500);
+  const child = spawn(process.execPath, ['dist/index.js'], {
+    cwd: dir,
+    env: { ...process.env, PORT: String(port) },
+    stdio: 'ignore',
+  });
+  const exited = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
+  try {
+    let body;
+    for (let i = 0; i < 50 && !body; i++) {
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}/api/v1/health`);
+        if (res.status === 200) body = await res.json();
+      } catch {
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
+    assert.deepEqual(body, { status: 'ok' });
+    if (process.platform !== 'win32') {
+      child.kill('SIGTERM'); // win32 has no signal delivery to handlers
+      assert.equal(await exited, 0, 'graceful exit code');
+    }
+  } finally {
+    child.kill('SIGKILL');
+  }
+}
+
 const MATRIX = {
   'full-base': [],
   'full-limiter': ['--limiter'],
@@ -180,11 +226,13 @@ for (const [name, flags] of Object.entries(MATRIX)) {
   test(
     `FULL: ${name} installs, builds, lints`,
     { skip: !process.env.FULL, timeout: 600_000 },
-    () => {
+    async () => {
       const { dir, r } = gen(name, ['--yes', ...flags]); // runs the real install
       assert.equal(r.status, 0, r.stderr);
       npm(['run', 'build'], dir);
       npm(['run', 'lint'], dir);
+      if (flags.includes('--auth')) checkRequireAuth(dir);
+      if (name === 'full-base') await checkHealthAndShutdown(dir);
     }
   );
 }
@@ -252,4 +300,40 @@ test('failed install says files were generated and how to recover', () => {
   assert.ok(has(dir, 'package.json'), 'files stay on disk');
   assert.match(r.stderr, /generated/);
   assert.match(r.stderr, /install/);
+});
+
+test('routes: /health is public, /user guarded only with --auth', () => {
+  const base = gen('hard-base', ['--yes', '--no-install']);
+  assert.equal(base.r.status, 0, base.r.stderr);
+  const br = read(base.dir, 'src/routes/index.ts');
+  assert.ok(br.includes("'/health'"));
+  assert.ok(br.includes("router.use('/user', userRoute);"));
+  assert.ok(!br.includes('requireAuth'));
+  assert.ok(!has(base.dir, 'src/middleware/auth.ts'));
+
+  const auth = gen('hard-auth', ['--yes', '--no-install', '--mongo', '--auth']);
+  assert.equal(auth.r.status, 0, auth.r.stderr);
+  const ar = read(auth.dir, 'src/routes/index.ts');
+  assert.ok(ar.includes("'/health'"));
+  assert.ok(ar.includes("router.use('/user', requireAuth, userRoute);"));
+  assert.ok(!ar.includes("router.use('/user', userRoute);"));
+  assert.ok(!ar.includes('{{'));
+  assert.ok(has(auth.dir, 'src/middleware/auth.ts'));
+});
+
+test('index handles SIGTERM/SIGINT; mongo app disconnects on shutdown', () => {
+  const base = gen('shut-base', ['--yes', '--no-install']);
+  const bi = read(base.dir, 'src/index.ts');
+  assert.ok(bi.includes('SIGTERM') && bi.includes('SIGINT'));
+  const mongo = gen('shut-mongo', ['--yes', '--no-install', '--mongo']);
+  const mi = read(mongo.dir, 'src/index.ts');
+  assert.ok(mi.includes('SIGTERM') && mi.includes('disconnectMongo'));
+  assert.ok(read(mongo.dir, 'src/config/mongodb.config.ts').includes('disconnectMongo'));
+});
+
+test('auth middleware fails at boot without SECRET_KEY', () => {
+  const { dir } = gen('boot-secret', ['--yes', '--no-install', '--mongo', '--auth']);
+  const m = read(dir, 'src/middleware/auth.ts');
+  assert.ok(m.includes('SECRET_KEY is not set'));
+  assert.ok(m.includes("algorithms: ['HS256']"));
 });

@@ -7,3 +7,7 @@ export default async function connectMongo() {
   await mongoose.connect(uri);
   logger.info('MongoDb connected');
 }
+
+export async function disconnectMongo() {
+  await mongoose.disconnect();
+}
