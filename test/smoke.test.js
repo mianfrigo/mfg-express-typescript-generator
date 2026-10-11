@@ -285,6 +285,7 @@ async function checkPostgresCrud(dir, flags, adminUrl) {
       }
     }
     assert.ok(up, 'app booted against postgres');
+    assert.equal((await fetch(`${base}/ready`)).status, 200, 'ready with a live db');
 
     const call = async (method, p, body, token) => {
       const res = await fetch(base + p, {
@@ -365,8 +366,10 @@ async function checkHealthAndShutdown(dir, openapi = false) {
   const child = spawn(process.execPath, ['dist/index.js'], {
     cwd: dir,
     env: { ...process.env, PORT: String(port) },
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'ignore'],
   });
+  let stdout = '';
+  child.stdout.on('data', (d) => (stdout += d));
   const exited = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
   try {
     let body;
@@ -379,6 +382,11 @@ async function checkHealthAndShutdown(dir, openapi = false) {
       }
     }
     assert.deepEqual(body, { status: 'ok' });
+    const ready = await fetch(`http://127.0.0.1:${port}/api/v1/ready`);
+    assert.equal(ready.status, 200);
+    assert.deepEqual(await ready.json(), { status: 'ready' });
+    assert.match(stdout, /connected to port/, 'logs go to stdout');
+    assert.ok(!existsSync(path.join(dir, 'logs')), 'no log files are written');
     if (openapi) {
       const base = `http://127.0.0.1:${port}/api/v1`;
       const spec = await (await fetch(`${base}/openapi.json`)).json();
@@ -798,4 +806,80 @@ test('--mongo output has no prisma files', () => {
   assert.equal(r.status, 0, r.stderr);
   assert.ok(!has(dir, 'prisma') && !has(dir, 'prisma.config.ts') && !has(dir, 'docker-compose.yml'));
   assert.equal(pkg(dir).scripts.postinstall, undefined);
+});
+
+test('.env.example documents variables without leaking the secret', () => {
+  const { dir, r } = gen('envex', ['--yes', '--no-install', '--mongo', '--auth']);
+  assert.equal(r.status, 0, r.stderr);
+  const ex = read(dir, '.env.example');
+  assert.match(ex, /^PORT=3000$/m);
+  assert.match(ex, /^MONGO_DB=/m);
+  assert.match(ex, /^CORS_ORIGINS=/m);
+  assert.match(ex, /^SECRET_KEY=$/m, 'secret is blank in the example');
+  assert.ok(!/[0-9a-f]{64}/.test(ex), 'no real secret in the example');
+  assert.match(read(dir, '.env'), /^SECRET_KEY=[0-9a-f]{64}$/m);
+  assert.ok(!/^\.env\.example$/m.test(read(dir, '.gitignore')), '.env.example is committable');
+});
+
+test('production defaults: CORS_ORIGINS, stdout logging, TRUST_PROXY, quiet morgan', () => {
+  const { dir, r } = gen('prod', ['--yes', '--no-install', '--docker']);
+  assert.equal(r.status, 0, r.stderr);
+  const cfg = read(dir, 'src/config/config.ts');
+  assert.ok(cfg.includes('process.env.CORS_ORIGINS'));
+  assert.ok(cfg.includes('allowed.includes(origin)'));
+  assert.ok(cfg.includes('return null;'), 'morgan output is suppressed (logger prints once)');
+  const log = read(dir, 'src/config/logger.config.ts');
+  assert.ok(log.includes('new transports.Console()'));
+  assert.ok(!log.includes('transports.File') && !log.includes('./logs/'));
+  assert.ok(log.includes('LOG_LEVEL') && log.includes("NODE_ENV === 'production'"));
+  const app = read(dir, 'src/app.ts');
+  assert.ok(app.includes('TRUST_PROXY') && app.includes("'trust proxy'"));
+  assert.ok(!read(dir, 'Dockerfile').includes('chown'), 'no log-dir workaround needed');
+  assert.match(read(dir, '.env'), /^CORS_ORIGINS=/m);
+});
+
+test('/ready: always ok without a db, pings the db otherwise', () => {
+  const base = gen('ready-base', ['--yes', '--no-install']);
+  const br = read(base.dir, 'src/routes/index.ts');
+  assert.ok(br.includes("'/ready'") && br.includes('503'));
+  assert.ok(!br.includes('mongoose') && !br.includes('prisma'));
+
+  const mongo = gen('ready-mongo', ['--yes', '--no-install', '--mongo']);
+  const mr = read(mongo.dir, 'src/routes/index.ts');
+  assert.ok(mr.includes("import mongoose from 'mongoose'"));
+  assert.ok(mr.includes('mongoose.connection.readyState'));
+  assert.ok(!mr.includes('prisma'));
+
+  const pg = gen('ready-pg', ['--yes', '--no-install', '--postgres']);
+  const pr = read(pg.dir, 'src/routes/index.ts');
+  assert.ok(pr.includes('prisma.$queryRaw'));
+  assert.ok(!pr.includes('mongoose'));
+  assert.ok(!allTs(pg.dir).includes('{{'));
+});
+
+test('/ready is documented when --openapi is on', () => {
+  const { dir, r } = gen('ready-oa', ['--yes', '--no-install', '--zod', '--openapi']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(read(dir, 'src/openapi.ts').includes("'/ready'"));
+});
+
+test('README reflects the chosen options', () => {
+  const base = gen('readme-base', ['--yes', '--no-install']);
+  const b = read(base.dir, 'README.md');
+  assert.ok(b.includes('/health') && b.includes('/ready') && b.includes('CORS_ORIGINS'));
+  for (const absent of ['db:deploy', 'MONGO_DB', 'DATABASE_URL', 'SECRET_KEY', 'docker build', 'npm test', '/docs']) {
+    assert.ok(!b.includes(absent), `base README must not mention ${absent}`);
+  }
+  assert.ok(!b.includes('{{'));
+
+  const pg = gen('readme-pg', ['--yes', '--no-install', '--postgres', '--auth', '--zod', '--openapi', '--test', '--docker']);
+  const p = read(pg.dir, 'README.md');
+  for (const present of ['db:deploy', 'db:migrate', 'docker compose up', 'DATABASE_URL', 'SECRET_KEY', '/auth/register', '/docs', 'npm test', 'docker build']) {
+    assert.ok(p.includes(present), `postgres README should mention ${present}`);
+  }
+  assert.ok(!p.includes('MONGO_DB') && !p.includes('{{'));
+
+  const mongo = gen('readme-mongo', ['--yes', '--no-install', '--mongo']);
+  const m = read(mongo.dir, 'README.md');
+  assert.ok(m.includes('MONGO_DB') && !m.includes('DATABASE_URL') && !m.includes('db:deploy'));
 });

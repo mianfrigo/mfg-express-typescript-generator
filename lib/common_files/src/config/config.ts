@@ -19,7 +19,13 @@ const corsOptions: CorsOptions = {
   preflightContinue: false,
 };
 
-const allowed = ['http://localhost:4200', 'http://localhost:3000'];
+// Comma-separated list in CORS_ORIGINS (see .env.example).
+const allowed = (
+  process.env.CORS_ORIGINS ?? 'http://localhost:3000,http://localhost:4200'
+)
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 // Exact origin match. Requests without an Origin header (curl, server-to-server,
 // same-origin) are served; they just get no CORS headers.
@@ -54,5 +60,5 @@ export const morganConfig = (
     'ms',
   ].join(' ');
   logger.info(log);
-  return log;
+  return null; // the logger prints the line; morgan stays quiet (no duplicates)
 };

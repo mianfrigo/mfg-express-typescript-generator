@@ -38,7 +38,7 @@ Default project name is `express-ts`.
 
 ## What you get
 
-- Express 5, helmet, cors allow-list, morgan + winston logging, `.env` via dotenv.
+- Express 5, helmet, CORS allow-list (`CORS_ORIGINS`), winston logging to stdout, `.env` + `.env.example`, `GET /health` and `GET /ready`.
 - `npm run dev` (tsx watch), `npm run build` (tsc), `npm start`, `npm run lint` (ESLint flat config + prettier).
 - Routes under `/api/v1`, public `GET /api/v1/health`, graceful shutdown on SIGTERM/SIGINT. With `--mongo`: edit `MONGO_DB` in `.env` before `npm run dev`.
 

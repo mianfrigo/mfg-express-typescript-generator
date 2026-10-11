@@ -35,6 +35,16 @@ export const openapiDocument = {
         responses: { 200: { description: 'Service is up' } },
       },
     },
+    '/ready': {
+      get: {
+        summary: 'Readiness check (database reachable)',
+        security: [],
+        responses: {
+          200: { description: 'Ready' },
+          503: { description: 'Not ready' },
+        },
+      },
+    },
     '/user': {
       get: {
         summary: 'List users',
