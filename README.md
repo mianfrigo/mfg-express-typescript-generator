@@ -21,6 +21,7 @@ Without flags you get a few yes/no prompts. Skip them with flags:
 | `-y, --yes` | No prompts; unset options default to off |
 | `--limiter` | Add `express-rate-limit` to routes |
 | `--mongo` | Add MongoDB with mongoose and a `/user` CRUD route |
+| `--postgres` | Add PostgreSQL with Prisma 7: schema, initial migration, `docker-compose.yml`, `db:migrate`/`db:deploy` scripts, and the same `/user` CRUD (exclusive with `--mongo`) |
 | `--auth` | Add `POST /api/v1/auth/register` and `POST /api/v1/auth` (JWT login), and require a `Bearer` token on `/api/v1/user`; needs `--mongo`; writes a random `SECRET_KEY` to `.env` |
 | `--rxjs` | Use rxjs instead of promises in controllers (needs `--mongo`) |
 | `--test` | Add vitest + supertest and an example test in `test/` (`npm test`) |
@@ -40,6 +41,16 @@ Default project name is `express-ts`.
 - Express 5, helmet, cors allow-list, morgan + winston logging, `.env` via dotenv.
 - `npm run dev` (tsx watch), `npm run build` (tsc), `npm start`, `npm run lint` (ESLint flat config + prettier).
 - Routes under `/api/v1`, public `GET /api/v1/health`, graceful shutdown on SIGTERM/SIGINT. With `--mongo`: edit `MONGO_DB` in `.env` before `npm run dev`.
+
+### PostgreSQL (`--postgres`)
+
+```bash
+docker compose up -d        # local Postgres matching DATABASE_URL in .env
+npm run db:deploy           # apply the committed migration
+npm run dev
+```
+
+The Prisma client is generated into `src/generated/prisma` by `postinstall`. Change `prisma/schema.prisma`, then `npm run db:migrate`.
 
 ## Migrating from 1.x
 

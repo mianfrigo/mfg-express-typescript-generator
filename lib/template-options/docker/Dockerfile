@@ -1,8 +1,11 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+#{{!postgres}} RUN npm install
+#{{postgres}} # postinstall (prisma generate) needs the schema, copied below
+#{{postgres}} RUN npm install --ignore-scripts
 COPY . .
+#{{postgres}} RUN npx prisma generate
 RUN npm run build && npm prune --omit=dev
 
 FROM node:22-alpine
