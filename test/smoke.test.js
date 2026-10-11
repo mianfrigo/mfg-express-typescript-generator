@@ -451,3 +451,10 @@ test('pinned versions are exact (no ranges) so FULL results are reproducible', a
     assert.match(v, /^\d+\.\d+\.\d+$/, `${name} must be pinned exactly`);
   }
 });
+
+test('package.json repository.url is already in normalized git+https form', () => {
+  assert.match(
+    rootPkg.repository.url,
+    /^git\+https:\/\/github\.com\/[\w.-]+\/[\w.-]+\.git$/
+  );
+});
