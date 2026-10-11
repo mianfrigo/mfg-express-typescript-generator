@@ -1,13 +1,19 @@
 {
   "name": "@mianfrigo/express-typescript-generator",
-  "version": "1.3.8",
-  "description": "npm package to generate boilerplate node express application with typescript and webpack",
+  "version": "2.0.0",
+  "description": "npm package to generate a boilerplate node express application with typescript",
   "type": "module",
   "main": "bin/cli.js",
-  "script": {},
   "bin": {
     "mfg-express-typescript-generator": "bin/cli.js",
     "mfg-express-generator": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": ">=20.19"
   },
   "repository": {
     "type": "git",
@@ -15,25 +21,13 @@
   },
   "keywords": [
     "express",
-    "ex",
     "generator",
-    "generate",
-    "gen",
     "typescript",
-    "ts",
-    "types",
-    "typing",
-    "js",
-    "new",
-    "app",
     "express-ts",
-    "decorators",
-    "decorate",
-    "test",
-    "testing",
-    "routes",
-    "router",
-    "routing"
+    "scaffold",
+    "boilerplate",
+    "mongoose",
+    "rxjs"
   ],
   "preferGlobal": true,
   "author": "Miguel Frias",
@@ -41,21 +35,8 @@
   "bugs": {
     "url": "https://github.com/mianfrigo/mfg-express-typescript-generator/issues"
   },
-  "homepage": "https://github.com/mianfrigo/mfg-express-typescript-generator.git",
-  "dependencies": {
-    "boxen": "^5.0.0",
-    "chalk": "^4.1.0",
-    "edit-json-file": "^1.5.0",
-    "fs-extra": "^9.0.1",
-    "inquirer": "^7.3.3",
-    "ncp": "^2.0.0",
-    "ora": "^5.2.0"
-  },
-  "directories": {
-    "lib": "lib"
-  },
-  "devDependencies": {},
+  "homepage": "https://github.com/mianfrigo/mfg-express-typescript-generator#readme",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test"
   }
 }
