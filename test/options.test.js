@@ -22,10 +22,12 @@ test('flags set every option without prompting', async () => {
     here: false,
     zod: false,
     openapi: false,
+    ci: false,
     docker: false,
     test: false,
     zod: false,
     openapi: false,
+    ci: false,
     git: 'auto',
     here: false,
   });
@@ -44,6 +46,7 @@ test('--yes never prompts and defaults every option to false', async () => {
     test: false,
     zod: false,
     openapi: false,
+    ci: false,
     git: 'auto',
     here: false,
   });
@@ -190,4 +193,13 @@ test('postgres question is asked only when mongo is answered no; yes enables aut
 
 test('--auth without any db names both database flags', async () => {
   await assert.rejects(run(['--auth'], undefined), /--mongo or --postgres/);
+});
+
+test('--ci is flag-only: set by flag, never prompted', async () => {
+  const ask = async (q) => {
+    assert.ok(!/\bci\b|github|workflow/i.test(q), 'no prompt for --ci');
+    return false;
+  };
+  assert.equal((await run(['--ci'], ask)).ci, true);
+  assert.equal((await run([], ask)).ci, false);
 });

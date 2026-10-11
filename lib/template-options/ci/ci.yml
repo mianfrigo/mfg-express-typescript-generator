@@ -1,0 +1,34 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+#{{postgres}}     services:
+#{{postgres}}       postgres:
+#{{postgres}}         image: postgres:17-alpine
+#{{postgres}}         env:
+#{{postgres}}           POSTGRES_PASSWORD: postgres
+#{{postgres}}         ports:
+#{{postgres}}           - 5432:5432
+#{{postgres}}         options: >-
+#{{postgres}}           --health-cmd "pg_isready -U postgres"
+#{{postgres}}           --health-interval 5s
+#{{postgres}}           --health-timeout 5s
+#{{postgres}}           --health-retries 10
+    # .env is not in the repository; the app reads these at import time.
+    env:
+      CI: 'true'
+#{{postgres}}       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+#{{auth}}       SECRET_KEY: ci-only-secret-never-use-in-production-0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run lint
+      - run: npm run build
+#{{test}}       - run: npm test

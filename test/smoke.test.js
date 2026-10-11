@@ -360,6 +360,28 @@ async function checkPostgresCrud(dir, flags, adminUrl) {
   }
 }
 
+// The CI workflow's env block must be enough to run the app's own tests:
+// delete .env (not in the repo), then run npm test with only those variables.
+function checkCiEnv(dir) {
+  const yml = readFileSync(path.join(dir, '.github/workflows/ci.yml'), 'utf8');
+  const block = yml.split('\n    env:\n')[1].split('\n    steps:')[0];
+  const ciEnv = Object.fromEntries(
+    block
+      .split('\n')
+      .map((l) => l.match(/^ {6}(\w+): '?(.+?)'?$/))
+      .filter(Boolean)
+      .map((m) => [m[1], m[2]])
+  );
+  assert.ok(Object.keys(ciEnv).length >= 2, 'env block parsed');
+  rmSync(path.join(dir, '.env'));
+  const win = process.platform === 'win32';
+  const opts = { cwd: dir, encoding: 'utf8', env: { ...process.env, ...ciEnv } };
+  const r = win
+    ? spawnSync('npm test', { ...opts, shell: true })
+    : spawnSync('npm', ['test'], opts);
+  assert.equal(r.status, 0, `npm test without .env\n${r.stdout}\n${r.stderr}`);
+}
+
 // boots the compiled base app, hits /health, then SIGTERM must exit 0
 async function checkHealthAndShutdown(dir, openapi = false) {
   const port = 39000 + Math.floor(Math.random() * 500);
@@ -418,6 +440,8 @@ const MATRIX = {
   'full-test': ['--test'],
   'full-postgres': ['--postgres'],
   'full-postgres-auth-rxjs': ['--postgres', '--auth', '--rxjs', '--zod', '--openapi'],
+  'full-ci': ['--ci', '--postgres', '--auth', '--test'],
+  'full-ci-mongo': ['--ci', '--mongo', '--auth', '--test'],
   'full-zod': ['--zod'],
   'full-openapi': ['--zod', '--openapi'],
   'full-openapi-auth': ['--zod', '--openapi', '--mongo', '--auth'],
@@ -449,6 +473,8 @@ for (const [name, flags] of Object.entries(MATRIX)) {
       if (process.env.POSTGRES_URL && flags.includes('--postgres')) {
         await checkPostgresCrud(dir, flags, process.env.POSTGRES_URL);
       }
+      // last: it deletes .env
+      if (flags.includes('--ci') && flags.includes('--test')) checkCiEnv(dir);
       if (flags.includes('--auth')) checkRequireAuth(dir);
       if (name === 'full-base' || name === 'full-openapi') {
         await checkHealthAndShutdown(dir, flags.includes('--openapi'));
@@ -882,4 +908,45 @@ test('README reflects the chosen options', () => {
   const mongo = gen('readme-mongo', ['--yes', '--no-install', '--mongo']);
   const m = read(mongo.dir, 'README.md');
   assert.ok(m.includes('MONGO_DB') && !m.includes('DATABASE_URL') && !m.includes('db:deploy'));
+});
+
+test('--ci (plain app): lint, build; no services, no test step', () => {
+  const { dir, r } = gen('ci-base', ['--yes', '--no-install', '--ci']);
+  assert.equal(r.status, 0, r.stderr);
+  const y = read(dir, '.github/workflows/ci.yml');
+  assert.match(y, /^name: ci$/m);
+  assert.ok(y.includes('actions/checkout@') && y.includes('actions/setup-node@'));
+  assert.ok(y.includes('npm run lint') && y.includes('npm run build'));
+  for (const absent of ['services:', 'DATABASE_URL', 'SECRET_KEY', 'npm test', '{{']) {
+    assert.ok(!y.includes(absent), `plain CI must not contain ${absent}`);
+  }
+  assert.ok(read(dir, 'README.md').includes('.github/workflows/ci.yml'));
+});
+
+test('--ci (postgres + auth + test): service container, env, npm test', () => {
+  const { dir, r } = gen('ci-pg', ['--yes', '--no-install', '--ci', '--postgres', '--auth', '--test']);
+  assert.equal(r.status, 0, r.stderr);
+  const y = read(dir, '.github/workflows/ci.yml');
+  assert.ok(y.includes('image: postgres:17-alpine') && y.includes('pg_isready'));
+  assert.match(y, /^ {6}DATABASE_URL: postgresql:\/\/postgres:postgres@localhost:5432\/postgres$/m);
+  assert.match(y, /^ {6}SECRET_KEY: \S{32,}$/m);
+  assert.ok(y.includes('npm test') && !y.includes('{{'));
+  // indentation sanity: spaces only, even depth
+  for (const line of y.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'))) {
+    assert.match(line, /^( {2})*\S/, `bad indent: ${JSON.stringify(line)}`);
+  }
+});
+
+test('--ci (mongo): no service container (the tests never connect)', () => {
+  const { dir, r } = gen('ci-mongo', ['--yes', '--no-install', '--ci', '--mongo', '--test']);
+  assert.equal(r.status, 0, r.stderr);
+  const y = read(dir, '.github/workflows/ci.yml');
+  assert.ok(!y.includes('services:') && !y.includes('DATABASE_URL') && y.includes('npm test'));
+});
+
+test('without --ci: no workflow and no CI section in the README', () => {
+  const { dir, r } = gen('ci-off', ['--yes', '--no-install']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(!has(dir, '.github'));
+  assert.ok(!read(dir, 'README.md').includes('workflows/ci.yml'));
 });
