@@ -213,8 +213,30 @@ function checkValidate(dir, flags) {
   if (flags.includes('--auth')) assert.equal(out.rejectsObjectEmail, true);
 }
 
+// compiled spec module: structure only, no server or MongoDB needed
+function checkOpenapiDoc(dir, flags) {
+  const r = spawnSync(
+    process.execPath,
+    ['-e', "console.log(JSON.stringify(require('./dist/openapi.js').openapiDocument))"],
+    { cwd: dir, encoding: 'utf8' }
+  );
+  assert.equal(r.status, 0, r.stderr);
+  const doc = JSON.parse(r.stdout.trim());
+  assert.equal(doc.openapi, '3.1.0');
+  for (const p of ['/health', '/user', '/user/{id}']) assert.ok(doc.paths[p], p);
+  assert.ok(doc.paths['/user/{id}'].put.requestBody, 'update schema documented');
+  if (flags.includes('--auth')) {
+    assert.ok(doc.paths['/auth'].post.requestBody);
+    assert.ok(doc.paths['/auth/register'].post.requestBody);
+    assert.ok(doc.components.securitySchemes.bearerAuth);
+    assert.deepEqual(doc.paths['/auth'].post.security, []);
+  } else {
+    assert.equal(doc.paths['/auth'], undefined);
+  }
+}
+
 // boots the compiled base app, hits /health, then SIGTERM must exit 0
-async function checkHealthAndShutdown(dir) {
+async function checkHealthAndShutdown(dir, openapi = false) {
   const port = 39000 + Math.floor(Math.random() * 500);
   const child = spawn(process.execPath, ['dist/index.js'], {
     cwd: dir,
@@ -233,6 +255,19 @@ async function checkHealthAndShutdown(dir) {
       }
     }
     assert.deepEqual(body, { status: 'ok' });
+    if (openapi) {
+      const base = `http://127.0.0.1:${port}/api/v1`;
+      const spec = await (await fetch(`${base}/openapi.json`)).json();
+      assert.equal(spec.openapi, '3.1.0');
+      const create = spec.paths['/user'].post.requestBody.content['application/json'].schema;
+      assert.ok(create.properties.first_name, 'request schema comes from zod');
+      assert.ok(create.required.includes('email'));
+      const docs = await fetch(`${base}/docs/`);
+      assert.equal(docs.status, 200);
+      assert.match(await docs.text(), /swagger-ui/);
+      const init = await fetch(`${base}/docs/swagger-ui-init.js`);
+      assert.equal(init.status, 200);
+    }
     if (process.platform !== 'win32') {
       child.kill('SIGTERM'); // win32 has no signal delivery to handlers
       assert.equal(await exited, 0, 'graceful exit code');
@@ -250,8 +285,10 @@ const MATRIX = {
   'full-rxjs': ['--mongo', '--rxjs'],
   'full-test': ['--test'],
   'full-zod': ['--zod'],
+  'full-openapi': ['--zod', '--openapi'],
+  'full-openapi-auth': ['--zod', '--openapi', '--mongo', '--auth'],
   'full-zod-mongo-auth': ['--zod', '--mongo', '--auth'],
-  'full-all': ['--mongo', '--auth', '--rxjs', '--limiter', '--test', '--docker', '--zod'],
+  'full-all': ['--mongo', '--auth', '--rxjs', '--limiter', '--test', '--docker', '--zod', '--openapi'],
 };
 
 const npm = (args, cwd) => {
@@ -273,8 +310,11 @@ for (const [name, flags] of Object.entries(MATRIX)) {
       npm(['run', 'lint'], dir);
       if (flags.includes('--test')) npm(['test'], dir);
       if (flags.includes('--zod')) checkValidate(dir, flags);
+      if (flags.includes('--openapi')) checkOpenapiDoc(dir, flags);
       if (flags.includes('--auth')) checkRequireAuth(dir);
-      if (name === 'full-base') await checkHealthAndShutdown(dir);
+      if (name === 'full-base' || name === 'full-openapi') {
+        await checkHealthAndShutdown(dir, flags.includes('--openapi'));
+      }
     }
   );
 }
@@ -531,4 +571,45 @@ test('without --zod: no zod dependency, files or validate calls', () => {
   assert.ok(!has(dir, 'src/validation'));
   const ts = allTs(dir);
   assert.ok(!ts.includes('validate(') && !ts.includes('{{'));
+});
+
+test('--openapi without --zod exits 1', () => {
+  const { r } = gen('openapi-nozod', ['--yes', '--no-install', '--openapi']);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /--zod/);
+});
+
+test('--openapi (in-memory): swagger ui + spec built from the zod schemas', () => {
+  const { dir, r } = gen('openapi-base', ['--yes', '--no-install', '--zod', '--openapi']);
+  assert.equal(r.status, 0, r.stderr);
+  const p = pkg(dir);
+  assert.ok(p.dependencies['swagger-ui-express']);
+  assert.ok(p.devDependencies['@types/swagger-ui-express']);
+  const app = read(dir, 'src/app.ts');
+  assert.ok(app.includes("from 'swagger-ui-express'"));
+  assert.ok(app.includes('/api/v1/openapi.json'));
+  assert.ok(app.includes("'/api/v1/docs'"));
+  const spec = read(dir, 'src/openapi.ts');
+  assert.ok(spec.includes('z.toJSONSchema(schema)'));
+  assert.ok(spec.includes("'/user/{id}'"));
+  assert.ok(!spec.includes('/auth') && !spec.includes('bearerAuth'));
+  assert.ok(!allTs(dir).includes('{{'));
+});
+
+test('--openapi with --auth documents login, register and the bearer scheme', () => {
+  const { dir, r } = gen('openapi-auth', ['--yes', '--no-install', '--zod', '--openapi', '--mongo', '--auth']);
+  assert.equal(r.status, 0, r.stderr);
+  const spec = read(dir, 'src/openapi.ts');
+  for (const s of ["'/auth'", "'/auth/register'", 'bearerAuth', 'loginSchema', 'registerSchema']) {
+    assert.ok(spec.includes(s), s);
+  }
+  assert.ok(!allTs(dir).includes('{{'));
+});
+
+test('without --openapi: app.ts has no swagger and no openapi.ts', () => {
+  const { dir, r } = gen('openapi-off', ['--yes', '--no-install', '--zod']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(!read(dir, 'src/app.ts').includes('swagger'));
+  assert.ok(!has(dir, 'src/openapi.ts'));
+  assert.equal(pkg(dir).dependencies['swagger-ui-express'], undefined);
 });
