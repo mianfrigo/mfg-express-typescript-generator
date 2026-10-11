@@ -1,0 +1,51 @@
+name: database
+on: [push, pull_request]
+jobs:
+  postgres:
+    # Boots the generated --postgres apps against a real PostgreSQL, seeds them
+    # and drives CRUD/auth over HTTP (checkDbCrud in test/smoke.test.js).
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm test -- --test-name-pattern postgres
+        env:
+          FULL: '1'
+          POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+  mongo:
+    # Same checks against a real MongoDB for the --mongo apps (promise and rxjs).
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm test -- --test-name-pattern "full-mongo|full-zod-mongo-auth|full-rxjs|full-auth|full-ci-mongo|full-openapi-auth"
+        env:
+          FULL: '1'
+          MONGO_URL: mongodb://localhost:27017

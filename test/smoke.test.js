@@ -237,35 +237,47 @@ function checkOpenapiDoc(dir, flags) {
 
 // Real PostgreSQL (POSTGRES_URL, e.g. a CI service container): apply the
 // committed migration, boot the compiled app, then drive CRUD/auth over HTTP.
-async function checkPostgresCrud(dir, flags, adminUrl) {
+async function checkDbCrud(dir, flags, adminUrl) {
   const auth = flags.includes('--auth');
   const zod = flags.includes('--zod');
+  const kind = flags.includes('--postgres') ? 'postgres' : 'mongo';
   const dbName = 't_' + Math.random().toString(16).slice(2, 10);
-  const mk = spawnSync(
-    process.execPath,
-    [
-      '-e',
-      `const { Client } = require('pg');
-       (async () => {
-         const c = new Client({ connectionString: process.env.ADMIN_URL });
-         await c.connect();
-         await c.query('CREATE DATABASE "${dbName}"');
-         await c.end();
-       })().catch((e) => { console.error(e); process.exit(1); });`,
-    ],
-    { cwd: dir, encoding: 'utf8', env: { ...process.env, ADMIN_URL: adminUrl } }
-  );
-  assert.equal(mk.status, 0, mk.stderr);
-  const url = new URL(adminUrl);
-  url.pathname = '/' + dbName;
-  const env = { ...process.env, DATABASE_URL: url.toString() };
-
+  let env;
   const win = process.platform === 'win32'; // one string: no shell+args warning
-  const depOpts = { cwd: dir, encoding: 'utf8', env };
-  const dep = win
-    ? spawnSync('npm run db:deploy', { ...depOpts, shell: true })
-    : spawnSync('npm', ['run', 'db:deploy'], depOpts);
-  assert.equal(dep.status, 0, `db:deploy\n${dep.stdout}\n${dep.stderr}`);
+  const run = (cmd, extra) =>
+    win
+      ? spawnSync(cmd, { cwd: dir, encoding: 'utf8', env, shell: true, ...extra })
+      : spawnSync(cmd.split(' ')[0], cmd.split(' ').slice(1), { cwd: dir, encoding: 'utf8', env, ...extra });
+  if (kind === 'postgres') {
+    const mk = spawnSync(
+      process.execPath,
+      [
+        '-e',
+        `const { Client } = require('pg');
+         (async () => {
+           const c = new Client({ connectionString: process.env.ADMIN_URL });
+           await c.connect();
+           await c.query('CREATE DATABASE "${dbName}"');
+           await c.end();
+         })().catch((e) => { console.error(e); process.exit(1); });`,
+      ],
+      { cwd: dir, encoding: 'utf8', env: { ...process.env, ADMIN_URL: adminUrl } }
+    );
+    assert.equal(mk.status, 0, mk.stderr);
+    const url = new URL(adminUrl);
+    url.pathname = '/' + dbName;
+    env = { ...process.env, DATABASE_URL: url.toString() };
+    const dep = run('npm run db:deploy');
+    assert.equal(dep.status, 0, `db:deploy\n${dep.stdout}\n${dep.stderr}`);
+  } else {
+    env = { ...process.env, MONGO_DB: `${adminUrl.replace(/\/$/, '')}/${dbName}` };
+  }
+
+  // seed twice: must be idempotent
+  for (let i = 0; i < 2; i++) {
+    const seed = run('npm run db:seed');
+    assert.equal(seed.status, 0, `db:seed run ${i + 1}\n${seed.stdout}\n${seed.stderr}`);
+  }
 
   const port = 39500 + Math.floor(Math.random() * 400);
   const child = spawn(process.execPath, ['dist/index.js'], {
@@ -301,7 +313,11 @@ async function checkPostgresCrud(dir, flags, adminUrl) {
     };
 
     let token;
+    const missing = kind === 'mongo' ? '0'.repeat(24) : 'does-not-exist';
+    const idOf = (o) => o.id ?? o._id;
     if (auth) {
+      const seeded = await call('POST', '/auth', { email: 'ada@example.com', password: 'password123' });
+      assert.equal(seeded.status, 200, 'a seeded user can log in');
       const reg = await call('POST', '/auth/register', {
         firstName: 'Reg', lastName: 'User', email: 'reg@x.co', password: 'password123',
       });
@@ -317,9 +333,15 @@ async function checkPostgresCrud(dir, flags, adminUrl) {
       assert.equal((await call('GET', '/user')).status, 401, 'user routes need a token');
     }
 
+    const seededList = await call('GET', '/user', undefined, token);
+    assert.equal(seededList.status, 200);
+    for (const e of ['ada@example.com', 'grace@example.com', 'alan@example.com']) {
+      assert.equal(seededList.body.filter((u) => u.email === e).length, 1, `${e} seeded exactly once`);
+    }
+
     const made = await call('POST', '/user', { firstName: 'Ada', lastName: 'L', email: 'ada@x.co', extra: 1 }, token);
     assert.equal(made.status, 201);
-    assert.ok(made.body.id);
+    assert.ok(idOf(made.body));
     assert.equal(made.body.password, undefined);
     assert.equal(made.body.extra, undefined);
 
@@ -332,15 +354,20 @@ async function checkPostgresCrud(dir, flags, adminUrl) {
     assert.ok(list.body.some((u) => u.email === 'ada@x.co'));
     assert.ok(list.body.every((u) => u.password === undefined));
 
-    const one = await call('GET', `/user/${made.body.id}`, undefined, token);
+    const one = await call('GET', `/user/${idOf(made.body)}`, undefined, token);
     assert.equal(one.status, 200);
     assert.equal(one.body.email, 'ada@x.co');
-    assert.equal((await call('GET', '/user/does-not-exist', undefined, token)).status, 404);
+    assert.equal((await call('GET', `/user/${missing}`, undefined, token)).status, 404);
 
-    const upd = await call('PUT', `/user/${made.body.id}`, { firstName: 'Grace' }, token);
+    const upd = await call('PUT', `/user/${idOf(made.body)}`, { firstName: 'Grace' }, token);
     assert.equal(upd.status, 200);
     assert.equal(upd.body.firstName, 'Grace');
-    assert.equal((await call('PUT', '/user/does-not-exist', { firstName: 'X' }, token)).status, 404);
+    assert.equal((await call('PUT', `/user/${missing}`, { firstName: 'X' }, token)).status, 404);
+
+    if (kind === 'mongo') {
+      const bad = await call('GET', '/user/not-an-object-id', undefined, token);
+      assert.equal(bad.status, 400, 'malformed ObjectId is a 400');
+    }
 
     if (zod) {
       const inv = await call('POST', '/user', { firstName: 'Z', lastName: 'Z', email: 'not-an-email' }, token);
@@ -348,8 +375,8 @@ async function checkPostgresCrud(dir, flags, adminUrl) {
       assert.match(inv.body.error.message, /email/);
     }
 
-    assert.equal((await call('DELETE', `/user/${made.body.id}`, undefined, token)).status, 200);
-    assert.equal((await call('DELETE', `/user/${made.body.id}`, undefined, token)).status, 404);
+    assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 200);
+    assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 404);
 
     if (process.platform !== 'win32') {
       child.kill('SIGTERM');
@@ -471,7 +498,10 @@ for (const [name, flags] of Object.entries(MATRIX)) {
       if (flags.includes('--zod')) checkValidate(dir, flags);
       if (flags.includes('--openapi')) checkOpenapiDoc(dir, flags);
       if (process.env.POSTGRES_URL && flags.includes('--postgres')) {
-        await checkPostgresCrud(dir, flags, process.env.POSTGRES_URL);
+        await checkDbCrud(dir, flags, process.env.POSTGRES_URL);
+      }
+      if (process.env.MONGO_URL && flags.includes('--mongo')) {
+        await checkDbCrud(dir, flags, process.env.MONGO_URL);
       }
       // last: it deletes .env
       if (flags.includes('--ci') && flags.includes('--test')) checkCiEnv(dir);
@@ -949,4 +979,32 @@ test('without --ci: no workflow and no CI section in the README', () => {
   assert.equal(r.status, 0, r.stderr);
   assert.ok(!has(dir, '.github'));
   assert.ok(!read(dir, 'README.md').includes('workflows/ci.yml'));
+});
+
+test('db:seed: script + seed file per database, password only with --auth', () => {
+  const pg = gen('seed-pg', ['--yes', '--no-install', '--postgres']);
+  assert.equal(pg.r.status, 0, pg.r.stderr);
+  assert.equal(pkg(pg.dir).scripts['db:seed'], 'tsx scripts/seed.ts');
+  const ps = read(pg.dir, 'scripts/seed.ts');
+  assert.ok(ps.includes('prisma.user.upsert') && ps.includes('ada@example.com'));
+  assert.ok(!ps.includes('bcrypt') && !ps.includes('{{'));
+
+  const pga = gen('seed-pg-auth', ['--yes', '--no-install', '--postgres', '--auth']);
+  const pas = read(pga.dir, 'scripts/seed.ts');
+  assert.ok(pas.includes('bcrypt.hash') && pas.includes('password123') && !pas.includes('{{'));
+
+  const mg = gen('seed-mongo', ['--yes', '--no-install', '--mongo']);
+  const ms = read(mg.dir, 'scripts/seed.ts');
+  assert.ok(ms.includes('UserModel.updateOne') && ms.includes('upsert: true'));
+  assert.ok(!ms.includes('bcrypt') && !ms.includes('{{'));
+
+  const mga = gen('seed-mongo-auth', ['--yes', '--no-install', '--mongo', '--auth']);
+  assert.ok(read(mga.dir, 'scripts/seed.ts').includes('bcrypt.hash'));
+
+  const none = gen('seed-none', ['--yes', '--no-install']);
+  assert.ok(!has(none.dir, 'scripts'));
+  assert.equal(pkg(none.dir).scripts['db:seed'], undefined);
+  assert.ok(!read(none.dir, 'README.md').includes('db:seed'));
+  assert.ok(read(pga.dir, 'README.md').includes('db:seed'));
+  assert.ok(read(pga.dir, 'README.md').includes('password123'));
 });
