@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.5.1] - 2026-10-11
+
+### Docs
+- The README shown on npm is rewritten: quick start and recipes, the options
+  grouped by database, features, tooling and CLI, the endpoint and configuration
+  tables, database and Docker workflows, and migration notes for 1.x and the
+  2.x behavior changes. 2.5.0 was published before this landed, so its npm page
+  still shows the old text and its stale "needs `--mongo`" wording.
+- No code or generated-output changes.
+
 ## [2.5.0] - 2026-10-11
 
 ### Added
