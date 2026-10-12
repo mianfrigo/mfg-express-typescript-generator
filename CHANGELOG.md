@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.5.2] - 2026-10-12
+
+### Docs
+- Generated apps' README gains an **API docs (Swagger UI)** section with
+  `http://localhost:3000/api/v1/docs` and `/api/v1/openapi.json` (with
+  `--openapi`), and an **Authentication** section (with `--auth`): how to get a
+  user (`npm run db:seed`, then `ada@example.com`, `grace@example.com` or
+  `alan@example.com` with `password123` for development, or register your own),
+  how to log in, how to send the token, and a curl example. With both flags it
+  explains the Swagger **Authorize** button.
+- The npm README documents the same, and says plainly that there is no built-in
+  default user.
+
+### Changed
+- Generated Markdown is written with LF line endings and runs of blank lines
+  left by omitted sections are collapsed.
+
 ## [2.5.1] - 2026-10-11
 
 ### Docs
