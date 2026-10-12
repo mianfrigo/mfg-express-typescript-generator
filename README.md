@@ -58,6 +58,7 @@ Without `--yes` you are asked a few yes/no questions: rate limiting, MongoDB, Po
 | `--git`, `--no-git` | Force or skip `git init` (default: init unless already inside a repo) |
 | `--here` | Scaffold into the current (empty) directory |
 | `--no-install` | Skip dependency install |
+| `--no-agents` | Skip the generated `AGENTS.md` (a guidance file for AI coding agents and new contributors: commands, layout, conventions; it follows the options you chose) |
 | `-v, --version` | Print version |
 
 ## What you get
