@@ -17,14 +17,33 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: Tag must match package.json version
         run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
-      - run: npm i -g pnpm yarn
-      - run: npm test
+      - name: Is this version already on npm?
+        # Re-pushing a tag must not turn into a red run (E403) or a second
+        # provenance statement. A published version is immutable, so stop here.
+        id: published
+        env:
+          # anonymous lookup: do not send the .npmrc token setup-node wrote
+          NPM_CONFIG_USERCONFIG: /dev/null
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "$name@$version is already published; nothing to do."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.published.outputs.exists != 'true'
+        run: npm i -g pnpm yarn
+      - if: steps.published.outputs.exists != 'true'
+        run: npm test
         env:
           FULL: '1'
           # setup-node's registry-url writes an .npmrc that references
           # ${NODE_AUTH_TOKEN}; yarn 1 aborts when it is undefined. A dummy keeps
           # the tests from ever seeing the real publish token.
           NODE_AUTH_TOKEN: unused-during-tests
-      - run: npm publish --provenance --access public
+      - if: steps.published.outputs.exists != 'true'
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
