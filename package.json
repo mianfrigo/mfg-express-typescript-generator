@@ -1,6 +1,6 @@
 {
   "name": "@mianfrigo/express-typescript-generator",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "description": "Scaffold a production-ready Express 5 + TypeScript API: PostgreSQL (Prisma) or MongoDB, JWT auth, zod validation, OpenAPI/Swagger, tests, CI and Docker. One command.",
   "type": "module",
   "main": "bin/cli.js",
