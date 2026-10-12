@@ -115,8 +115,30 @@ tsconfig.json
 | `--git`, `--no-git` | Force or skip `git init` (default: init unless already inside a repo) |
 | `--here` | Scaffold into the current (empty) directory |
 | `--no-install` | Skip dependency install |
+| `--preset minimal\|api\|full` | A bundle of flags, see below. It answers every question, so it implies `--yes`. |
+| `--no-config` | Ignore `.mfgrc.json` files |
 | `--no-agents` | Skip the generated `AGENTS.md` (a guidance file for AI coding agents and new contributors: commands, layout, conventions; it follows the options you chose) |
 | `-v, --version` | Print version |
+
+### Presets
+
+| Preset | Adds |
+|---|---|
+| `minimal` | nothing (the in-memory sample app) |
+| `api` | `--postgres --auth --zod --openapi --test` |
+| `full` | `api` plus `--ci --docker --limiter` |
+
+Explicit flags are added on top (`--preset api --docker --rxjs`), and an explicit database replaces the preset's: `--preset api --mongo` gives MongoDB with auth, zod, OpenAPI and tests. To leave something out, pick a smaller preset.
+
+### Team defaults (`.mfgrc.json`)
+
+Put a `.mfgrc.json` in your home directory or the directory you run the generator from (the current directory overrides home) to set defaults:
+
+```json
+{ "preset": "api", "pm": "pnpm", "docker": true }
+```
+
+Allowed keys are `preset`, `pm`, and the feature flags (`mongo`, `postgres`, `limiter`, `auth`, `rxjs`, `docker`, `test`, `zod`, `openapi`, `ci`, `git`, `agents`) as `true` / `false`. `git: false` means `--no-git` and `agents: false` means `--no-agents`. Order of precedence: preset, then the file, then command-line flags. Unknown keys are an error that names the file; pass `--no-config` to ignore it.
 
 ## What you get
 

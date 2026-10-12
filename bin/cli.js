@@ -5,6 +5,7 @@ import { styleText } from 'node:util';
 import { generateApp } from '../lib/generate.js';
 import {
   createAsk,
+  loadConfig,
   parseCli,
   resolveOptions,
   validateName,
@@ -15,7 +16,10 @@ const pkg = JSON.parse(
 );
 
 try {
-  const { values, positionals } = parseCli(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  // .mfgrc.json defaults (current directory, then home); --no-config skips them
+  const config = argv.includes('--no-config') ? {} : loadConfig();
+  const { values, positionals } = parseCli(argv, { config });
   if (values.version) {
     console.log(`express-typescript-generator v${pkg.version}`);
     process.exit(0);

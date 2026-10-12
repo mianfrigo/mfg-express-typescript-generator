@@ -25,6 +25,7 @@ const gen = (name, flags = []) => {
   const dir = path.join(tmp, name);
   const r = spawnSync(process.execPath, [bin, dir, ...flags], {
     encoding: 'utf8',
+    env: { ...process.env, HOME: tmp, USERPROFILE: tmp }, // never read the developer's ~/.mfgrc.json
   });
   return { dir, r };
 };
@@ -1441,4 +1442,50 @@ test('release workflow: re-tagging an already published version does not fail or
     wf.indexOf('id: published') < wf.indexOf('npm publish'),
     'the existence check runs before publishing'
   );
+});
+
+test('--preset api / full / minimal generate the promised projects', () => {
+  const api = gen('preset-api', ['--preset', 'api', '--no-install']);
+  assert.equal(api.r.status, 0, api.r.stderr);
+  for (const f of ['prisma/schema.prisma', 'src/middleware/auth.ts', 'src/validation/user.validation.ts', 'src/openapi.ts', 'test/health.test.ts']) {
+    assert.ok(has(api.dir, f), `api preset has ${f}`);
+  }
+  assert.ok(!has(api.dir, 'Dockerfile') && !has(api.dir, '.github'));
+
+  const full = gen('preset-full', ['--preset', 'full', '--no-install']);
+  for (const f of ['Dockerfile', '.github/workflows/ci.yml', 'src/middleware/limiters.ts']) {
+    assert.ok(has(full.dir, f), `full preset has ${f}`);
+  }
+
+  const min = gen('preset-min', ['--preset', 'minimal', '--no-install']);
+  assert.equal(min.r.status, 0, min.r.stderr);
+  assert.ok(has(min.dir, 'src/db/data.ts') && !has(min.dir, 'prisma'));
+
+  const mongo = gen('preset-mongo', ['--preset', 'api', '--mongo', '--no-install']);
+  assert.ok(has(mongo.dir, 'src/models/user.schema.ts') && !has(mongo.dir, 'prisma'));
+
+  const bad = gen('preset-bad', ['--preset', 'huge', '--no-install']);
+  assert.equal(bad.r.status, 1);
+  assert.match(bad.r.stderr, /minimal, api, full/);
+});
+
+test('.mfgrc.json in the current directory sets defaults; --no-config ignores it', () => {
+  const work = path.join(tmp, 'cfg-work');
+  mkdirSync(work);
+  writeFileSync(path.join(work, '.mfgrc.json'), JSON.stringify({ mongo: true, zod: true, pm: 'npm' }));
+  const env = { ...process.env, HOME: tmp, USERPROFILE: tmp };
+  const withCfg = spawnSync(process.execPath, [bin, 'app1', '--yes', '--no-install'], { cwd: work, env, encoding: 'utf8' });
+  assert.equal(withCfg.status, 0, withCfg.stderr);
+  assert.ok(has(path.join(work, 'app1'), 'src/models/user.schema.ts'), 'config enabled mongo');
+  assert.ok(has(path.join(work, 'app1'), 'src/validation/user.validation.ts'), 'config enabled zod');
+
+  const ignored = spawnSync(process.execPath, [bin, 'app2', '--yes', '--no-install', '--no-config'], { cwd: work, env, encoding: 'utf8' });
+  assert.equal(ignored.status, 0, ignored.stderr);
+  assert.ok(!has(path.join(work, 'app2'), 'src/models'), '--no-config ignores the file');
+
+  writeFileSync(path.join(work, '.mfgrc.json'), JSON.stringify({ banana: true }));
+  const broken = spawnSync(process.execPath, [bin, 'app3', '--yes', '--no-install'], { cwd: work, env, encoding: 'utf8' });
+  assert.equal(broken.status, 1);
+  assert.match(broken.stderr, /\.mfgrc\.json.*unknown option "banana"/);
+  assert.ok(!has(path.join(work, 'app3'), 'package.json'));
 });

@@ -1,6 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { detectPm, parseCli, resolveOptions, validateName } from '../lib/options.js';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {
+  detectPm,
+  loadConfig,
+  parseCli,
+  PRESETS,
+  resolveOptions,
+  validateName,
+} from '../lib/options.js';
 
 const run = (argv, ask, env = {}) =>
   resolveOptions(parseCli(argv).values, ask, env);
@@ -214,4 +224,87 @@ test('--no-agents is the only way to skip AGENTS.md (on by default, no prompt)',
   };
   assert.equal((await run([], ask)).agents, true);
   assert.equal((await run(['--no-agents'], ask)).agents, false);
+});
+
+test('--preset expands to flags and answers every question (implies --yes)', async () => {
+  const api = parseCli(['--preset', 'api']).values;
+  for (const k of ['postgres', 'auth', 'zod', 'openapi', 'test', 'yes']) assert.equal(api[k], true, k);
+  assert.ok(!api.ci && !api.docker && !api.limiter);
+
+  const full = parseCli(['--preset', 'full']).values;
+  for (const k of ['postgres', 'auth', 'zod', 'openapi', 'test', 'ci', 'docker', 'limiter']) {
+    assert.equal(full[k], true, k);
+  }
+
+  const minimal = parseCli(['--preset', 'minimal']).values;
+  assert.equal(minimal.yes, true);
+  assert.ok(!minimal.postgres && !minimal.mongo && !minimal.auth);
+
+  // a preset never prompts
+  const o2 = await resolveOptions(parseCli(['--preset', 'api']).values, never);
+  assert.equal(o2.db, 'postgres');
+  assert.deepEqual([o2.auth, o2.zod, o2.openapi, o2.test], [true, true, true, true]);
+  assert.deepEqual(Object.keys(PRESETS).sort(), ['api', 'full', 'minimal']);
+});
+
+test('--preset: explicit flags add on top, --mongo replaces the preset database, unknown name is an error', () => {
+  const plus = parseCli(['--preset', 'api', '--docker', '--rxjs']).values;
+  assert.equal(plus.docker, true);
+  assert.equal(plus.rxjs, true);
+
+  const mongo = parseCli(['--preset', 'api', '--mongo']).values;
+  assert.equal(mongo.mongo, true);
+  assert.ok(!mongo.postgres, 'explicit --mongo replaces the preset postgres');
+  assert.equal(mongo.auth, true);
+
+  assert.throws(() => parseCli(['--preset', 'huge']), /minimal, api, full/);
+});
+
+test('config file layer: preset < config < command line', () => {
+  // config adds to nothing
+  assert.equal(parseCli([], { config: { postgres: true, zod: true } }).values.zod, true);
+  // cli beats config
+  assert.equal(parseCli(['--pm', 'yarn'], { config: { pm: 'pnpm' } }).values.pm, 'yarn');
+  assert.equal(parseCli([], { config: { pm: 'pnpm' } }).values.pm, 'pnpm');
+  // config beats a preset's database
+  const v = parseCli([], { config: { preset: 'api', mongo: true } }).values;
+  assert.equal(v.mongo, true);
+  assert.ok(!v.postgres);
+  // cross-layer rules use the merged result: --openapi is fine when the config enables zod
+  assert.doesNotThrow(() => parseCli(['--openapi'], { config: { zod: true } }));
+  assert.throws(() => parseCli(['--openapi'], { config: {} }), /--openapi requires --zod/);
+  // cli preset beats config preset
+  assert.equal(parseCli(['--preset', 'minimal'], { config: { preset: 'full' } }).values.docker, undefined);
+  // config booleans for git / agents map to the negative flags
+  const g = parseCli([], { config: { git: false, agents: false } }).values;
+  assert.equal(g['no-git'], true);
+  assert.equal(g['no-agents'], true);
+});
+
+test('loadConfig: current directory overrides home; errors name the file and key', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'mfgrc-'));
+  const home = path.join(root, 'home');
+  const cwd = path.join(root, 'work');
+  mkdirSync(home);
+  mkdirSync(cwd);
+  assert.deepEqual(loadConfig({ cwd, home }), {}, 'no files: empty config');
+
+  writeFileSync(path.join(home, '.mfgrc.json'), JSON.stringify({ pm: 'yarn', zod: true }));
+  writeFileSync(path.join(cwd, '.mfgrc.json'), JSON.stringify({ pm: 'pnpm' }));
+  assert.deepEqual(loadConfig({ cwd, home }), { pm: 'pnpm', zod: true });
+
+  writeFileSync(path.join(cwd, '.mfgrc.json'), '{ not json');
+  assert.throws(() => loadConfig({ cwd, home }), /\.mfgrc\.json.*invalid JSON/);
+
+  writeFileSync(path.join(cwd, '.mfgrc.json'), JSON.stringify({ banana: true }));
+  assert.throws(() => loadConfig({ cwd, home }), /\.mfgrc\.json.*unknown option "banana"/);
+
+  writeFileSync(path.join(cwd, '.mfgrc.json'), JSON.stringify({ here: true }));
+  assert.throws(() => loadConfig({ cwd, home }), /"here" can only be passed on the command line/);
+
+  writeFileSync(path.join(cwd, '.mfgrc.json'), JSON.stringify({ zod: 'yes' }));
+  assert.throws(() => loadConfig({ cwd, home }), /"zod" must be true or false/);
+
+  writeFileSync(path.join(cwd, '.mfgrc.json'), JSON.stringify({ preset: 'nope' }));
+  assert.throws(() => loadConfig({ cwd, home }), /preset/);
 });
