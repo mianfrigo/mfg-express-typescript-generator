@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.8.1] - 2026-10-12
+
+### Added
+- **`npm create express-blueprint`.** The thin entry-point package is now
+  published as `create-express-blueprint`: `npm create express-blueprint@latest
+  my-api` (also `pnpm create`, `yarn create` and `npx create-express-blueprint`).
+  It runs this generator, so flags, presets, the wizard and `--dry-run` work the
+  same. With `npm create`, put `--` before flags.
+
+### Fixed
+- **A taken port is a clear failure.** In Express 5 the `app.listen` callback
+  receives the bind error, which the generated `src/index.ts` ignored: if the
+  port was in use the app logged `connected to port N` and idled without
+  listening. It now prints the error (`EADDRINUSE`, `EACCES`) and exits with
+  code 1.
+
+### Notes
+- 2.8.0 announced `create-expresskit`. npm rejected that name as too similar to
+  the existing `create-express-kit`, so it was never published; the package
+  under its final name first ships with this release.
+
+### Repo
+- The runtime checks ask the OS for a free port and report the port and last
+  response when an app fails to boot.
+
 ## [2.8.0] - 2026-10-12
 
 ### Added
