@@ -21,6 +21,10 @@ jobs:
       - run: npm test
         env:
           FULL: '1'
+          # setup-node's registry-url writes an .npmrc that references
+          # ${NODE_AUTH_TOKEN}; yarn 1 aborts when it is undefined. A dummy keeps
+          # the tests from ever seeing the real publish token.
+          NODE_AUTH_TOKEN: unused-during-tests
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

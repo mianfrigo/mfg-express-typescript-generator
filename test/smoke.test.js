@@ -1395,3 +1395,14 @@ test('README file list matches a real run of the flagship combination', () => {
     .sort();
   assert.deepEqual(listed, actual, 'README tree must equal the generated files (minus .env, .gitignore, .git)');
 });
+
+test('release workflow: the test step defines NODE_AUTH_TOKEN so yarn can read the .npmrc setup-node writes', () => {
+  const wf = readFileSync(
+    new URL('../.github/workflows/release.yml', import.meta.url),
+    'utf8'
+  ).replace(/\r\n/g, '\n');
+  assert.ok(wf.includes('registry-url:'), 'setup-node writes an .npmrc referencing ${NODE_AUTH_TOKEN}');
+  const testStep = wf.split('      - run: npm test\n')[1].split('\n      - run:')[0];
+  assert.match(testStep, /NODE_AUTH_TOKEN: /, 'yarn 1 fails when the variable is undefined');
+  assert.ok(!testStep.includes('secrets.'), 'tests never receive the real publish token');
+});
