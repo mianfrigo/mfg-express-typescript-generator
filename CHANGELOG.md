@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.8.0] - 2026-10-12
+
+### Added
+- **Interactive wizard.** Run the generator with no flags in a terminal and pick
+  Minimal, API starter, Full or Custom with the arrow keys. Custom asks for a
+  database and then a checklist of features; options that need something else
+  are disabled with the reason (authentication and rxjs need a database,
+  Swagger needs validation). It prints the equivalent command and asks you to
+  confirm; Esc or Ctrl+C cancels without writing anything. It is skipped when
+  `--yes`, `--preset` or any feature flag is given, and in scripts and CI.
+- **`npm create expresskit`.** A new thin package, `create-expresskit`, runs
+  this generator under a name `npm create`, `pnpm create` and `yarn create`
+  understand: `npm create expresskit@latest my-api`. It is published from the
+  same release as this package.
+
+### Changed
+- **One runtime dependency:** `@clack/prompts` (pinned exactly), used only by the
+  wizard and loaded only when the wizard runs. The package is no longer "zero
+  runtime dependencies".
+- A `package-lock.json` is committed, and Dependabot watches npm.
+
+### Repo
+- Every workflow that runs the tests installs dependencies with `npm ci` first.
+- The release workflow publishes `create-expresskit` once per version, after the
+  generator, with provenance.
+
 ## [2.7.0] - 2026-10-12
 
 ### Added
