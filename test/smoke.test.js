@@ -1609,16 +1609,16 @@ test('non-interactive runs never load the prompt library', () => {
   assert.ok(!wiz.includes("from '@clack/prompts'"), 'the wizard module takes the library by injection');
 });
 
-// ---- create-expresskit: the npm create entry point ----------------------------
-const wrapperDir = fileURLToPath(new URL('../packages/create-expresskit/', import.meta.url));
+// ---- create-express-blueprint: the npm create entry point ----------------------------
+const wrapperDir = fileURLToPath(new URL('../packages/create-express-blueprint/', import.meta.url));
 const wrapperPkg = () => JSON.parse(readFileSync(path.join(wrapperDir, 'package.json'), 'utf8'));
 
-test('create-expresskit: package metadata makes "npm create expresskit" work', () => {
+test('create-express-blueprint: package metadata makes "npm create express-blueprint" work', () => {
   const p = wrapperPkg();
-  assert.equal(p.name, 'create-expresskit');
+  assert.equal(p.name, 'create-express-blueprint');
   assert.match(p.version, /^\d+\.\d+\.\d+$/);
-  // npm create expresskit -> runs the bin called create-expresskit
-  assert.equal(p.bin['create-expresskit'], 'bin/cli.js');
+  // npm create express-blueprint -> runs the bin called create-express-blueprint
+  assert.equal(p.bin['create-express-blueprint'], 'bin/cli.js');
   assert.equal(p.type, 'module');
   assert.equal(p.license, 'MIT');
   assert.ok(p.engines.node.includes('20.19'));
@@ -1634,7 +1634,7 @@ test('create-expresskit: package metadata makes "npm create expresskit" work', (
   assert.match(readFileSync(path.join(wrapperDir, 'bin/cli.js'), 'utf8'), /^#!\/usr\/bin\/env node/);
 });
 
-test('create-expresskit: its dependency range is satisfied by this repo\'s generator version', () => {
+test('create-express-blueprint: its dependency range is satisfied by this repo\'s generator version', () => {
   const range = wrapperPkg().dependencies['@mianfrigo/express-typescript-generator'];
   const m = range.match(/^\^(\d+)\.(\d+)\.(\d+)$/);
   assert.ok(m, `a caret range, got ${range}`);
@@ -1644,7 +1644,7 @@ test('create-expresskit: its dependency range is satisfied by this repo\'s gener
   assert.ok(geq, `generator ${rootPkg.version} must be >= ${range}`);
 });
 
-test('create-expresskit: runs the generator CLI when installed next to it', () => {
+test('create-express-blueprint: runs the generator CLI when installed next to it', () => {
   // lay the two packages out the way npm installs them: node_modules/<name>
   const root = mkdtempSync(path.join(tmp, 'wrapper-'));
   const nm = path.join(root, 'node_modules');
@@ -1654,9 +1654,9 @@ test('create-expresskit: runs the generator CLI when installed next to it', () =
   for (const entry of ['bin', 'lib', 'package.json']) {
     cpSync(path.join(repo, entry), path.join(generatorDir, entry), { recursive: true });
   }
-  cpSync(wrapperDir, path.join(nm, 'create-expresskit'), { recursive: true });
+  cpSync(wrapperDir, path.join(nm, 'create-express-blueprint'), { recursive: true });
 
-  const bin = path.join(nm, 'create-expresskit', 'bin', 'cli.js');
+  const bin = path.join(nm, 'create-express-blueprint', 'bin', 'cli.js');
   const r = spawnSync(process.execPath, [bin, 'via-wrapper', '--preset', 'minimal', '--no-install', '--no-config'], {
     cwd: root,
     encoding: 'utf8',
@@ -1671,21 +1671,37 @@ test('create-expresskit: runs the generator CLI when installed next to it', () =
   assert.ok(v.stdout.includes(rootPkg.version), 'passes arguments through to the generator');
 });
 
-test('README leads with npm create expresskit, and the wrapper README does too', () => {
+test('README leads with npm create express-blueprint, and the wrapper README does too', () => {
   const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-  assert.ok(readme.includes('npm create expresskit@latest my-api'));
+  assert.ok(readme.includes('npm create express-blueprint@latest my-api'));
   const wr = readFileSync(path.join(wrapperDir, 'README.md'), 'utf8');
-  assert.ok(wr.includes('npm create expresskit@latest') && wr.includes('@mianfrigo/express-typescript-generator'));
+  assert.ok(wr.includes('npm create express-blueprint@latest') && wr.includes('@mianfrigo/express-typescript-generator'));
 });
 
-test('release workflow also publishes create-expresskit, once per version, with provenance', () => {
+test('release workflow also publishes create-express-blueprint, once per version, with provenance', () => {
   const wf = readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  assert.ok(wf.includes('packages/create-expresskit'), 'works in the wrapper directory');
+  assert.ok(wf.includes('packages/create-express-blueprint'), 'works in the wrapper directory');
   assert.match(wf, /id: wrapper/, 'its own existence check');
   const after = wf.slice(wf.indexOf('id: wrapper'));
   assert.ok(after.includes("steps.wrapper.outputs.exists != 'true'"));
   assert.ok(after.includes('npm publish --provenance --access public'));
   assert.ok(wf.indexOf('id: wrapper') > wf.indexOf('npm publish --provenance'), 'wrapper is published after the generator');
+});
+
+test('wrapper: every documented command is derived from the package name (no stale names)', () => {
+  const name = wrapperPkg().name;
+  const short = name.replace(/^create-/, '');
+  assert.match(name, /^create-[a-z0-9-]+$/);
+  for (const [file, text] of [
+    ['README.md', readFileSync(new URL('../README.md', import.meta.url), 'utf8')],
+    ['wrapper README', readFileSync(path.join(wrapperDir, 'README.md'), 'utf8')],
+  ]) {
+    assert.ok(text.includes(`npm create ${short}@latest`), `${file} documents npm create ${short}`);
+    assert.ok(!/expresskit/i.test(text), `${file} has no stale name`);
+  }
+  assert.ok(wrapperDir.endsWith(name + path.sep) || wrapperDir.endsWith(name + '/'), 'folder matches the package name');
+  const wf = readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8');
+  assert.ok(!/expresskit/i.test(wf), 'release workflow has no stale name');
 });
 
 test('index.ts handles a failed bind instead of logging "connected" and idling (all variants)', () => {

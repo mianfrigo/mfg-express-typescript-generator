@@ -1,10 +1,10 @@
 {
-  "name": "create-expresskit",
+  "name": "create-express-blueprint",
   "version": "1.0.0",
-  "description": "npm create expresskit: scaffold a production-ready Express 5 + TypeScript API (PostgreSQL or MongoDB, auth, zod, OpenAPI, tests, CI, Docker).",
+  "description": "npm create express-blueprint: scaffold a production-ready Express 5 + TypeScript API (PostgreSQL or MongoDB, auth, zod, OpenAPI, tests, CI, Docker).",
   "type": "module",
   "bin": {
-    "create-expresskit": "bin/cli.js"
+    "create-express-blueprint": "bin/cli.js"
   },
   "files": [
     "bin",
@@ -26,12 +26,12 @@
     "starter",
     "boilerplate",
     "api",
-    "expresskit"
+    "blueprint"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mianfrigo/mfg-express-typescript-generator.git",
-    "directory": "packages/create-expresskit"
+    "directory": "packages/create-express-blueprint"
   },
   "homepage": "https://github.com/mianfrigo/mfg-express-typescript-generator#readme",
   "bugs": {
