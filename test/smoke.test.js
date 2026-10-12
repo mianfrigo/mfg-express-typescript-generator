@@ -1422,7 +1422,23 @@ test('release workflow: the test step defines NODE_AUTH_TOKEN so yarn can read t
     'utf8'
   ).replace(/\r\n/g, '\n');
   assert.ok(wf.includes('registry-url:'), 'setup-node writes an .npmrc referencing ${NODE_AUTH_TOKEN}');
-  const testStep = wf.split('      - run: npm test\n')[1].split('\n      - run:')[0];
+  const testStep = wf.match(/run: npm test\n([\s\S]*?)(?=\n      - |$)/)[1];
   assert.match(testStep, /NODE_AUTH_TOKEN: /, 'yarn 1 fails when the variable is undefined');
   assert.ok(!testStep.includes('secrets.'), 'tests never receive the real publish token');
+});
+
+test('release workflow: re-tagging an already published version does not fail or re-publish', () => {
+  const wf = readFileSync(
+    new URL('../.github/workflows/release.yml', import.meta.url),
+    'utf8'
+  ).replace(/\r\n/g, '\n');
+  assert.ok(wf.includes('npm view'), 'asks the registry whether this version exists');
+  assert.match(wf, /id: published/, 'the check is a named step');
+  const guard = "if: steps.published.outputs.exists != 'true'";
+  const guarded = wf.split(guard).length - 1;
+  assert.ok(guarded >= 3, `install, test and publish are all skipped when published (found ${guarded})`);
+  assert.ok(
+    wf.indexOf('id: published') < wf.indexOf('npm publish'),
+    'the existence check runs before publishing'
+  );
 });
