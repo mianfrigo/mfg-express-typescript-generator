@@ -1542,3 +1542,24 @@ test('--dry-run summarises options, dependencies and scripts, and still refuses 
   assert.equal(again.r.status, 1);
   assert.match(again.r.stderr, /already exists/);
 });
+
+test('workflows that run the tests install the dependencies first, and a lockfile is committed', () => {
+  const dir = new URL('../.github/workflows/', import.meta.url);
+  const flagged = [];
+  for (const name of readdirSync(dir)) {
+    const text = readFileSync(new URL(name, dir), 'utf8');
+    if (/run: npm test/.test(text) && !/run: npm (ci|install)\b/.test(text)) flagged.push(name);
+  }
+  assert.deepEqual(flagged, [], 'these workflows run npm test without installing');
+  assert.ok(existsSync(new URL('../package-lock.json', import.meta.url)), 'package-lock.json is committed');
+  assert.deepEqual(Object.keys(rootPkg.dependencies), ['@clack/prompts']);
+  assert.match(rootPkg.dependencies['@clack/prompts'], /^\d+\.\d+\.\d+$/, 'pinned exactly');
+});
+
+test('non-interactive runs never load the prompt library', () => {
+  const src = readFileSync(new URL('../bin/cli.js', import.meta.url), 'utf8');
+  assert.ok(!/^import .*@clack\/prompts/m.test(src), 'no static import in the CLI entry');
+  assert.ok(src.includes("await import('@clack/prompts')"), 'loaded lazily, only for the wizard');
+  const wiz = readFileSync(new URL('../lib/wizard.js', import.meta.url), 'utf8');
+  assert.ok(!wiz.includes("from '@clack/prompts'"), 'the wizard module takes the library by injection');
+});

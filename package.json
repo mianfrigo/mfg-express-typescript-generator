@@ -1,7 +1,7 @@
 {
   "name": "@mianfrigo/express-typescript-generator",
   "version": "2.7.0",
-  "description": "Scaffold a production-ready Express 5 + TypeScript API: PostgreSQL (Prisma) or MongoDB, JWT auth, zod validation, OpenAPI/Swagger, tests, CI and Docker. One command, zero dependencies.",
+  "description": "Scaffold a production-ready Express 5 + TypeScript API: PostgreSQL (Prisma) or MongoDB, JWT auth, zod validation, OpenAPI/Swagger, tests, CI and Docker. One command.",
   "type": "module",
   "main": "bin/cli.js",
   "bin": {
@@ -54,6 +54,9 @@
   },
   "homepage": "https://github.com/mianfrigo/mfg-express-typescript-generator#readme",
   "scripts": {
-    "test": "node --test test/options.test.js test/smoke.test.js"
+    "test": "node --test test/options.test.js test/smoke.test.js test/wizard.test.js"
+  },
+  "dependencies": {
+    "@clack/prompts": "1.8.1"
   }
 }

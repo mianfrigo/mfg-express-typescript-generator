@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping. The project is small on purpose: a zero-dependency CLI (`bin/`, `lib/options.js`, `lib/generate.js`) and a set of templates under `lib/`.
+Thanks for helping. The project is small on purpose: a small CLI (`bin/`, `lib/options.js`, `lib/generate.js`, `lib/wizard.js`) with one runtime dependency and a set of templates under `lib/`.
 
 ## Setup
 
@@ -10,7 +10,7 @@ cd mfg-express-typescript-generator
 npm test                # fast checks: generates into temp directories, no install
 ```
 
-Node >= 20.19. There are no runtime dependencies and no build step.
+Node >= 20.19, then `npm install` once (the only runtime dependency is `@clack/prompts`, used by the interactive wizard and loaded lazily). There is no build step. Keep new runtime dependencies to a minimum: the generator is run through `npx` on other people's machines.
 
 ## Tests
 
