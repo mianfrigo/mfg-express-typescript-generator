@@ -2,7 +2,7 @@
 
 # @mianfrigo/express-typescript-generator
 
-[![npm](https://badgen.net/npm/v/@mianfrigo/express-typescript-generator)](https://www.npmjs.com/package/@mianfrigo/express-typescript-generator) ![license](https://badgen.net/badge/license/MIT/green)
+[![npm](https://badgen.net/npm/v/@mianfrigo/express-typescript-generator)](https://www.npmjs.com/package/@mianfrigo/express-typescript-generator) ![license](https://badgen.net/badge/license/MIT/green) [![CI](https://github.com/mianfrigo/mfg-express-typescript-generator/actions/workflows/test.yml/badge.svg)](https://github.com/mianfrigo/mfg-express-typescript-generator/actions/workflows/test.yml) [![downloads](https://img.shields.io/npm/dm/@mianfrigo/express-typescript-generator)](https://www.npmjs.com/package/@mianfrigo/express-typescript-generator)
 
 Scaffold an [Express 5](https://expressjs.com) + [TypeScript](https://www.typescriptlang.org) API in seconds, with the production basics already done: validation, auth, a database, migrations, OpenAPI docs, tests, CI and Docker are each one flag away.
 
@@ -34,6 +34,63 @@ npx @mianfrigo/express-typescript-generator tiny --yes
 ```
 
 Without `--yes` you are asked a few yes/no questions: rate limiting, MongoDB, PostgreSQL (only if you said no to MongoDB), and then authentication and rxjs when a database is chosen. Everything else is flag-only.
+
+## Which generator should you use?
+
+There are good lean generators, for example [express-generator-typescript](https://www.npmjs.com/package/express-generator-typescript): a small Express + TypeScript skeleton with no ORM, on a recent Node. If that is what you want, use it.
+
+This package is for when you want the next layer wired up and verified, and still want to choose each piece:
+
+| You want | Here |
+|---|---|
+| A database with migrations | `--postgres` (Prisma) or `--mongo` (mongoose), a local compose file, seed data |
+| Login and protected routes | `--auth` (JWT, bcrypt, `requireAuth`) |
+| Validated input and living API docs | `--zod`, `--openapi` (Swagger UI from the same schemas) |
+| Tests, CI and containers | `--test`, `--ci`, `--docker` (full-stack `docker compose up --build`) |
+| Production basics by default | `/health` and `/ready`, graceful shutdown, stdout logs, pagination, `.env.example`, `AGENTS.md` for AI agents |
+
+A matrix of option combinations is generated, installed, built, linted and run in CI, against real PostgreSQL and MongoDB, with npm, pnpm and yarn, and a release is blocked if any of it fails.
+
+### What you get, for real
+
+This is the real file list from a run of `--postgres --auth --zod --openapi --test --ci --docker` (plus `.env` and `.gitignore`, without `node_modules`):
+
+```text
+.dockerignore
+.env.example
+.github/workflows/ci.yml
+.prettierrc.json
+AGENTS.md
+Dockerfile
+README.md
+docker-compose.yml
+eslint.config.mjs
+package.json
+prisma.config.ts
+prisma/migrations/20261011000000_init/migration.sql
+prisma/migrations/migration_lock.toml
+prisma/schema.prisma
+scripts/seed.ts
+src/app.ts
+src/config/config.ts
+src/config/logger.config.ts
+src/config/prisma.ts
+src/controllers/auth.controller.ts
+src/controllers/user.controller.ts
+src/index.ts
+src/middleware/auth.ts
+src/middleware/errorHandler.ts
+src/middleware/validate.ts
+src/openapi.ts
+src/routes/auth.route.ts
+src/routes/index.ts
+src/routes/user.route.ts
+src/utils/pagination.ts
+src/validation/auth.validation.ts
+src/validation/user.validation.ts
+test/health.test.ts
+tsconfig.json
+```
 
 ## Options
 

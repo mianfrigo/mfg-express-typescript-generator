@@ -1336,3 +1336,62 @@ test('--pm pnpm writes the build-script allow-list pnpm 10+ requires', () => {
     assert.ok(!has(other.dir, 'pnpm-workspace.yaml'), `${pm} projects get no pnpm file`);
   }
 });
+
+test('trust files: security policy, contributing guide, issue and PR templates', () => {
+  const root = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+  const security = root('SECURITY.md');
+  assert.ok(security.includes('Supported versions') && security.includes('security/advisories/new'));
+  assert.ok(!/@\w+\.\w+/.test(security), 'no personal email address in the policy');
+
+  const contributing = root('CONTRIBUTING.md');
+  for (const topic of ['npm test', 'FULL=1', 'POSTGRES_URL', 'MONGO_URL', '//{{', 'CHANGELOG.md', 'lib/generate.js']) {
+    assert.ok(contributing.includes(topic), `CONTRIBUTING.md should mention ${topic}`);
+  }
+
+  for (const t of [
+    '.github/ISSUE_TEMPLATE/bug_report.md',
+    '.github/ISSUE_TEMPLATE/feature_request.md',
+    '.github/PULL_REQUEST_TEMPLATE.md',
+  ]) {
+    assert.ok(existsSync(new URL(`../${t}`, import.meta.url)), `${t} exists`);
+  }
+  const bug = root('.github/ISSUE_TEMPLATE/bug_report.md');
+  assert.ok(bug.includes('Generator version') && bug.includes('Command you ran'));
+});
+
+test('README hero: CI badge, one-line pitch and an honest "which one" section', () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  assert.ok(readme.includes('actions/workflows/test.yml/badge.svg'), 'CI badge');
+  assert.ok(readme.includes('## Which generator should you use?'));
+  assert.ok(readme.includes('express-generator-typescript'), 'names the lean alternative');
+  assert.ok(readme.includes('### What you get, for real'), 'shows a real generated tree');
+  assert.ok(readme.includes('src/validation/user.validation.ts'), 'tree comes from a real run');
+});
+
+test('package.json is discoverable: description and keywords', () => {
+  const { description, keywords } = rootPkg;
+  for (const word of ['Express', 'TypeScript', 'Prisma', 'MongoDB', 'OpenAPI', 'Docker']) {
+    assert.ok(description.includes(word), `description mentions ${word}`);
+  }
+  assert.ok(description.length <= 220, 'description stays scannable');
+  for (const k of ['express', 'typescript', 'generator', 'scaffold', 'openapi', 'swagger', 'prisma',
+    'postgresql', 'mongodb', 'zod', 'jwt', 'docker', 'starter', 'boilerplate', 'rest-api']) {
+    assert.ok(keywords.includes(k), `keyword ${k}`);
+  }
+});
+
+test('README file list matches a real run of the flagship combination', () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const block = readme.split('### What you get, for real')[1].split('```text\n')[1].split('\n```')[0];
+  const listed = block.split('\n').filter(Boolean).sort();
+  const { dir, r } = gen('readme-tree', [
+    '--yes', '--no-install', '--git', '--postgres', '--auth', '--zod', '--openapi', '--test', '--ci', '--docker',
+  ].filter((f) => f !== '--git'));
+  assert.equal(r.status, 0, r.stderr);
+  const actual = readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((d) => d.isFile())
+    .map((d) => path.relative(dir, path.join(d.parentPath, d.name)).split(path.sep).join('/'))
+    .filter((p) => !p.startsWith('.git/') && p !== '.env' && p !== '.gitignore')
+    .sort();
+  assert.deepEqual(listed, actual, 'README tree must equal the generated files (minus .env, .gitignore, .git)');
+});
