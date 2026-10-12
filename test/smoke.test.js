@@ -2,6 +2,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -1562,4 +1563,83 @@ test('non-interactive runs never load the prompt library', () => {
   assert.ok(src.includes("await import('@clack/prompts')"), 'loaded lazily, only for the wizard');
   const wiz = readFileSync(new URL('../lib/wizard.js', import.meta.url), 'utf8');
   assert.ok(!wiz.includes("from '@clack/prompts'"), 'the wizard module takes the library by injection');
+});
+
+// ---- create-expresskit: the npm create entry point ----------------------------
+const wrapperDir = fileURLToPath(new URL('../packages/create-expresskit/', import.meta.url));
+const wrapperPkg = () => JSON.parse(readFileSync(path.join(wrapperDir, 'package.json'), 'utf8'));
+
+test('create-expresskit: package metadata makes "npm create expresskit" work', () => {
+  const p = wrapperPkg();
+  assert.equal(p.name, 'create-expresskit');
+  assert.match(p.version, /^\d+\.\d+\.\d+$/);
+  // npm create expresskit -> runs the bin called create-expresskit
+  assert.equal(p.bin['create-expresskit'], 'bin/cli.js');
+  assert.equal(p.type, 'module');
+  assert.equal(p.license, 'MIT');
+  assert.ok(p.engines.node.includes('20.19'));
+  assert.deepEqual(p.files.sort(), ['LICENSE', 'README.md', 'bin'].sort());
+  assert.deepEqual(Object.keys(p.dependencies), ['@mianfrigo/express-typescript-generator']);
+  assert.ok(p.repository.url.startsWith('git+https://github.com/mianfrigo/'));
+  for (const k of ['create', 'express', 'typescript', 'generator', 'scaffold']) {
+    assert.ok(p.keywords.includes(k), `keyword ${k}`);
+  }
+  for (const file of ['bin/cli.js', 'README.md', 'LICENSE']) {
+    assert.ok(existsSync(path.join(wrapperDir, file)), `${file} exists`);
+  }
+  assert.match(readFileSync(path.join(wrapperDir, 'bin/cli.js'), 'utf8'), /^#!\/usr\/bin\/env node/);
+});
+
+test('create-expresskit: its dependency range is satisfied by this repo\'s generator version', () => {
+  const range = wrapperPkg().dependencies['@mianfrigo/express-typescript-generator'];
+  const m = range.match(/^\^(\d+)\.(\d+)\.(\d+)$/);
+  assert.ok(m, `a caret range, got ${range}`);
+  const [min, cur] = [m.slice(1).map(Number), rootPkg.version.split('.').map(Number)];
+  assert.equal(cur[0], min[0], 'same major');
+  const geq = cur[1] > min[1] || (cur[1] === min[1] && cur[2] >= min[2]);
+  assert.ok(geq, `generator ${rootPkg.version} must be >= ${range}`);
+});
+
+test('create-expresskit: runs the generator CLI when installed next to it', () => {
+  // lay the two packages out the way npm installs them: node_modules/<name>
+  const root = mkdtempSync(path.join(tmp, 'wrapper-'));
+  const nm = path.join(root, 'node_modules');
+  const repo = fileURLToPath(new URL('..', import.meta.url));
+  const generatorDir = path.join(nm, '@mianfrigo', 'express-typescript-generator');
+  mkdirSync(generatorDir, { recursive: true });
+  for (const entry of ['bin', 'lib', 'package.json']) {
+    cpSync(path.join(repo, entry), path.join(generatorDir, entry), { recursive: true });
+  }
+  cpSync(wrapperDir, path.join(nm, 'create-expresskit'), { recursive: true });
+
+  const bin = path.join(nm, 'create-expresskit', 'bin', 'cli.js');
+  const r = spawnSync(process.execPath, [bin, 'via-wrapper', '--preset', 'minimal', '--no-install', '--no-config'], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...process.env, HOME: tmp, USERPROFILE: tmp },
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(existsSync(path.join(root, 'via-wrapper', 'src', 'index.ts')), 'project created in the cwd');
+  assert.match(r.stdout, /Done\. Next/);
+
+  const v = spawnSync(process.execPath, [bin, '--version'], { encoding: 'utf8' });
+  assert.equal(v.status, 0);
+  assert.ok(v.stdout.includes(rootPkg.version), 'passes arguments through to the generator');
+});
+
+test('README leads with npm create expresskit, and the wrapper README does too', () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  assert.ok(readme.includes('npm create expresskit@latest my-api'));
+  const wr = readFileSync(path.join(wrapperDir, 'README.md'), 'utf8');
+  assert.ok(wr.includes('npm create expresskit@latest') && wr.includes('@mianfrigo/express-typescript-generator'));
+});
+
+test('release workflow also publishes create-expresskit, once per version, with provenance', () => {
+  const wf = readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.ok(wf.includes('packages/create-expresskit'), 'works in the wrapper directory');
+  assert.match(wf, /id: wrapper/, 'its own existence check');
+  const after = wf.slice(wf.indexOf('id: wrapper'));
+  assert.ok(after.includes("steps.wrapper.outputs.exists != 'true'"));
+  assert.ok(after.includes('npm publish --provenance --access public'));
+  assert.ok(wf.indexOf('id: wrapper') > wf.indexOf('npm publish --provenance'), 'wrapper is published after the generator');
 });

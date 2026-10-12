@@ -1,0 +1,42 @@
+{
+  "name": "create-expresskit",
+  "version": "1.0.0",
+  "description": "npm create expresskit: scaffold a production-ready Express 5 + TypeScript API (PostgreSQL or MongoDB, auth, zod, OpenAPI, tests, CI, Docker).",
+  "type": "module",
+  "bin": {
+    "create-expresskit": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "dependencies": {
+    "@mianfrigo/express-typescript-generator": "^2.7.0"
+  },
+  "keywords": [
+    "create",
+    "express",
+    "typescript",
+    "generator",
+    "scaffold",
+    "starter",
+    "boilerplate",
+    "api",
+    "expresskit"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mianfrigo/mfg-express-typescript-generator.git",
+    "directory": "packages/create-expresskit"
+  },
+  "homepage": "https://github.com/mianfrigo/mfg-express-typescript-generator#readme",
+  "bugs": {
+    "url": "https://github.com/mianfrigo/mfg-express-typescript-generator/issues"
+  },
+  "author": "Miguel Frias",
+  "license": "MIT"
+}
