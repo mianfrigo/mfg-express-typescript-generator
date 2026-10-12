@@ -308,3 +308,13 @@ test('loadConfig: current directory overrides home; errors name the file and key
   writeFileSync(path.join(cwd, '.mfgrc.json'), JSON.stringify({ preset: 'nope' }));
   assert.throws(() => loadConfig({ cwd, home }), /preset/);
 });
+
+test('--dry-run is a command-line flag only', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'mfgrc-dry-'));
+  writeFileSync(path.join(root, '.mfgrc.json'), JSON.stringify({ 'dry-run': true }));
+  assert.throws(
+    () => loadConfig({ cwd: root, home: path.join(root, 'nohome') }),
+    /"dry-run" can only be passed on the command line/
+  );
+  assert.equal(parseCli(['--dry-run']).values['dry-run'], true);
+});

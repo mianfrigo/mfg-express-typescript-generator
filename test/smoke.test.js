@@ -1489,3 +1489,56 @@ test('.mfgrc.json in the current directory sets defaults; --no-config ignores it
   assert.match(broken.stderr, /\.mfgrc\.json.*unknown option "banana"/);
   assert.ok(!has(path.join(work, 'app3'), 'package.json'));
 });
+
+const listFiles = (dir) =>
+  readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((d) => d.isFile())
+    .map((d) => path.relative(dir, path.join(d.parentPath, d.name)).split(path.sep).join('/'))
+    .filter((p) => !p.startsWith('.git/'))
+    .sort();
+
+const dryTmpLeftovers = () => readdirSync(os.tmpdir()).filter((n) => n.startsWith('mfg-dry-')).length;
+
+test('--dry-run writes nothing, cleans up, and lists exactly what a real run creates', () => {
+  for (const [name, flags] of [
+    ['dry-plain', []],
+    ['dry-pg', ['--preset', 'full']],
+    ['dry-mongo', ['--mongo', '--auth', '--zod', '--openapi', '--rxjs', '--limiter', '--test', '--ci', '--docker']],
+  ]) {
+    const before = dryTmpLeftovers();
+    const dry = gen(name + '-preview', ['--no-install', '--yes', '--dry-run', ...flags]);
+    assert.equal(dry.r.status, 0, dry.r.stderr);
+    assert.ok(!has(tmp, name + '-preview'), 'a dry run creates no directory');
+    assert.equal(dryTmpLeftovers(), before, 'the temporary preview directory is removed');
+    assert.match(dry.r.stdout, /Dry run: nothing was written/);
+
+    const real = gen(name + '-real', ['--no-install', '--yes', '--no-git', ...flags]);
+    assert.equal(real.r.status, 0, real.r.stderr);
+    const expected = listFiles(real.dir);
+    const listed = dry.r.stdout
+      .split('\n')
+      .filter((l) => /^ {2}\S/.test(l) && !l.includes(':'))
+      .map((l) => l.trim())
+      .sort();
+    assert.deepEqual(listed, expected, `${name}: dry-run file list equals a real run`);
+    assert.match(dry.r.stdout, new RegExp(`${expected.length} files`));
+  }
+});
+
+test('--dry-run summarises options, dependencies and scripts, and still refuses an existing directory', () => {
+  const dry = gen('dry-summary', ['--no-install', '--yes', '--dry-run', '--postgres', '--auth', '--test']);
+  assert.equal(dry.r.status, 0, dry.r.stderr);
+  const out = dry.r.stdout;
+  assert.match(out, /Options: .*postgres.*auth.*test/);
+  assert.match(out, /dependencies, \d+ devDependencies/);
+  const scriptsLine = out.split(/\r?\n/).find((l) => l.startsWith('scripts: '));
+  for (const sc of ['dev', 'build', 'test', 'db:migrate', 'db:seed']) {
+    assert.ok(scriptsLine.includes(sc), `scripts line lists ${sc}`);
+  }
+  assert.match(out, /without --dry-run/);
+
+  gen('dry-exists', ['--no-install', '--yes']); // creates it
+  const again = gen('dry-exists', ['--no-install', '--yes', '--dry-run']);
+  assert.equal(again.r.status, 1);
+  assert.match(again.r.stderr, /already exists/);
+});
