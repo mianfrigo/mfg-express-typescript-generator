@@ -49,11 +49,11 @@ jobs:
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      # create-expresskit (npm create expresskit) is a thin package with its own
+      # create-express-blueprint (npm create express-blueprint) is a thin package with its own
       # version. It is published once per version, after the generator it runs.
-      - name: Is create-expresskit already on npm?
+      - name: Is create-express-blueprint already on npm?
         id: wrapper
-        working-directory: packages/create-expresskit
+        working-directory: packages/create-express-blueprint
         env:
           NPM_CONFIG_USERCONFIG: /dev/null
         run: |
@@ -66,7 +66,7 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.wrapper.outputs.exists != 'true'
-        working-directory: packages/create-expresskit
+        working-directory: packages/create-express-blueprint
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

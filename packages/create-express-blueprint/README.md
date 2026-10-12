@@ -1,21 +1,21 @@
-# create-expresskit
+# create-express-blueprint
 
 Scaffold a production-ready **Express 5 + TypeScript** API in one command.
 
 ```bash
-npm create expresskit@latest my-api
+npm create express-blueprint@latest my-api
 # or
-npx create-expresskit my-api
-pnpm create expresskit my-api
-yarn create expresskit my-api
+npx create-express-blueprint my-api
+pnpm create express-blueprint my-api
+yarn create express-blueprint my-api
 ```
 
 Run it with no flags in a terminal for an arrow-key wizard, or pass flags / a preset:
 
 ```bash
-npm create expresskit@latest shop -- --preset api      # PostgreSQL, auth, zod, Swagger, tests
-npm create expresskit@latest shop -- --postgres --auth --zod --openapi --test --ci --docker
-npm create expresskit@latest shop -- --preset full --dry-run   # preview the files, write nothing
+npm create express-blueprint@latest shop -- --preset api      # PostgreSQL, auth, zod, Swagger, tests
+npm create express-blueprint@latest shop -- --postgres --auth --zod --openapi --test --ci --docker
+npm create express-blueprint@latest shop -- --preset full --dry-run   # preview the files, write nothing
 ```
 
 (With `npm create`, put `--` before the flags so npm passes them through.)
