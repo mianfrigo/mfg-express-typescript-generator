@@ -88,6 +88,30 @@ All under `/api/v1`.
 
 Errors are JSON `{ "error": { "statusCode", "message" } }`. Duplicate emails answer 409, unknown ids 404, and server errors never leak internals.
 
+### API docs (Swagger UI)
+
+With `--zod --openapi` and the app running (default port 3000):
+
+- Swagger UI: **http://localhost:3000/api/v1/docs**
+- Raw OpenAPI 3.1 spec: **http://localhost:3000/api/v1/openapi.json**
+
+Both are public. The spec is generated from the zod schemas, so request bodies cannot drift from what the API accepts.
+
+### Authentication (`--auth`)
+
+`/api/v1/user` needs `Authorization: Bearer <token>`; `/api/v1/auth/register`, `/api/v1/auth`, `/health` and `/ready` are public. There is no built-in default user: create one first.
+
+1. **Get a user.** `npm run db:seed` creates `ada@example.com`, `grace@example.com` and `alan@example.com`, all with the password `password123` (development only, never use it in production). Or register your own with `POST /api/v1/auth/register` (`firstName`, `lastName`, `email`, `password` of at least 8 characters).
+2. **Log in** with `POST /api/v1/auth` and `{ "email", "password" }`. The response contains `authToken`, valid for 24 hours.
+3. **Send it** as `Authorization: Bearer <authToken>`.
+4. **In Swagger UI** click **Authorize** and paste the token without the `Bearer ` prefix.
+
+```bash
+curl -s -X POST http://localhost:3000/api/v1/auth \
+  -H 'content-type: application/json' \
+  -d '{"email":"ada@example.com","password":"password123"}'
+```
+
 ### Configuration
 
 `.env` is generated (and git-ignored); `.env.example` documents the same variables and is safe to commit.
