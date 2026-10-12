@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.6.0] - 2026-10-12
+
+### Added
+- **`AGENTS.md`** in every generated project: commands, file layout,
+  conventions and "adding a resource" steps for AI coding agents and new
+  contributors, written for the options you chose (database, auth, zod, OpenAPI,
+  tests, CI, Docker). On by default; `--no-agents` skips it.
+- `SECURITY.md`, `CONTRIBUTING.md`, issue templates and a pull request template.
+- README: CI and downloads badges, a "Which generator should you use?" section,
+  and the real file list of a generated project.
+
+### Fixed
+- **`--pm pnpm` on pnpm 10 and newer.** `pnpm install` refused dependency build
+  scripts (`esbuild`, `prisma`, `@prisma/engines`) and exited with
+  `ERR_PNPM_IGNORED_BUILDS`, so the generator reported a failed install. The
+  project now gets a `pnpm-workspace.yaml` allow-list (`onlyBuiltDependencies`
+  for pnpm 10, `allowBuilds` for pnpm 11+); telemetry (`@scarf/scarf`) stays
+  blocked.
+
+### Repo
+- The full test matrix runs pnpm and yarn combinations (CI installs both).
+- Package description and keywords improved for npm search.
+
 ## [2.5.2] - 2026-10-12
 
 ### Docs
