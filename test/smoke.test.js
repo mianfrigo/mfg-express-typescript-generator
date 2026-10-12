@@ -304,8 +304,9 @@ async function checkDbCrud(dir, flags, adminUrl) {
       try {
         up = (await fetch(`${base}/health`)).status === 200;
       } catch {
-        await new Promise((r) => setTimeout(r, 250));
+        /* not listening yet */
       }
+      if (!up) await new Promise((r) => setTimeout(r, 250));
     }
     assert.ok(
       up,
@@ -441,21 +442,40 @@ async function checkHealthAndShutdown(dir, openapi = false) {
   const child = spawn(process.execPath, ['dist/index.js'], {
     cwd: dir,
     env: { ...process.env, PORT: String(port) },
-    stdio: ['ignore', 'pipe', 'ignore'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stdout = '';
+  let stderr = '';
   child.stdout.on('data', (d) => (stdout += d));
-  const exited = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
+  child.stderr.on('data', (d) => (stderr += d));
+  let earlyExit = null;
+  const exited = new Promise((resolve) =>
+    child.on('exit', (code) => {
+      earlyExit = code;
+      resolve(code);
+    })
+  );
   try {
     let body;
-    for (let i = 0; i < 50 && !body; i++) {
+    let last = 'no response';
+    // up to ~60 s; sleep after EVERY failed attempt (a non-200 used to spin)
+    for (let i = 0; i < 240 && !body && earlyExit === null; i++) {
       try {
         const res = await fetch(`http://127.0.0.1:${port}/api/v1/health`);
-        if (res.status === 200) body = await res.json();
-      } catch {
-        await new Promise((r) => setTimeout(r, 200));
+        last = `HTTP ${res.status}`;
+        if (res.status === 200) {
+          body = await res.json();
+          break;
+        }
+      } catch (e) {
+        last = String((e && e.cause && e.cause.code) || (e && e.message));
       }
+      await new Promise((r) => setTimeout(r, 250));
     }
+    assert.ok(
+      body,
+      `app did not answer /health (last: ${last}, exit code: ${earlyExit}, port ${port}).\nstdout:\n${stdout.slice(-2000)}\nstderr:\n${stderr.slice(-2000)}`
+    );
     assert.deepEqual(body, { status: 'ok' });
     const ready = await fetch(`http://127.0.0.1:${port}/api/v1/ready`);
     assert.equal(ready.status, 200);
