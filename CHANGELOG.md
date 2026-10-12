@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.7.0] - 2026-10-12
+
+### Added
+- **`--preset minimal|api|full`**: a bundle of flags (`api` is `--postgres
+  --auth --zod --openapi --test`; `full` adds `--ci --docker --limiter`). A
+  preset answers every question, explicit flags are added on top, and an
+  explicit database replaces the preset's.
+- **`.mfgrc.json`** team defaults, read from the home directory and then the
+  current directory (which overrides). Keys are `preset`, `pm` and the feature
+  flags; precedence is preset, then file, then command line. Errors name the
+  file and key. `--no-config` ignores it.
+- **`--dry-run`**: prints the files, dependency counts and scripts a run would
+  create and writes nothing. It runs the real generator into a temporary
+  directory, so the preview cannot drift from a real run.
+
+### Repo
+- The release workflow skips install, test and publish when the version is
+  already on npm, so re-pushing a tag no longer ends in a red run.
+- Boot waits in the runtime checks sleep after every failed attempt and report
+  why the app did not answer.
+
 ## [2.6.0] - 2026-10-12
 
 ### Added
