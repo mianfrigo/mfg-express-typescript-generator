@@ -23,11 +23,13 @@ test('flags set every option without prompting', async () => {
     zod: false,
     openapi: false,
     ci: false,
+    agents: true,
     docker: false,
     test: false,
     zod: false,
     openapi: false,
     ci: false,
+    agents: true,
     git: 'auto',
     here: false,
   });
@@ -47,6 +49,7 @@ test('--yes never prompts and defaults every option to false', async () => {
     zod: false,
     openapi: false,
     ci: false,
+    agents: true,
     git: 'auto',
     here: false,
   });
@@ -202,4 +205,13 @@ test('--ci is flag-only: set by flag, never prompted', async () => {
   };
   assert.equal((await run(['--ci'], ask)).ci, true);
   assert.equal((await run([], ask)).ci, false);
+});
+
+test('--no-agents is the only way to skip AGENTS.md (on by default, no prompt)', async () => {
+  const ask = async (q) => {
+    assert.ok(!/agent/i.test(q), 'no prompt for AGENTS.md');
+    return false;
+  };
+  assert.equal((await run([], ask)).agents, true);
+  assert.equal((await run(['--no-agents'], ask)).agents, false);
 });
