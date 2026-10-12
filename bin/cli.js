@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
 import { generateApp, previewApp } from '../lib/generate.js';
+import { runWizard, shouldRunWizard } from '../lib/wizard.js';
 import {
   createAsk,
   loadConfig,
@@ -38,6 +39,23 @@ try {
   } else if (existsSync(dest)) {
     throw new Error(`${dest} already exists. Pick another name.`);
   }
+  // On a terminal with nothing decided yet: the arrow-key wizard. The library is
+  // only loaded here, so scripts and CI never pay for it.
+  const tty = { stdin: process.stdin.isTTY, stdout: process.stdout.isTTY };
+  if (shouldRunWizard(values, tty)) {
+    const clack = await import('@clack/prompts');
+    clack.intro('express-typescript-generator');
+    const picked = await runWizard({
+      prompts: clack,
+      projectName: path.basename(dest),
+    });
+    if (!picked) {
+      clack.cancel('Nothing was created.');
+      process.exit(130);
+    }
+    Object.assign(values, picked, { yes: true });
+  }
+
   const ask = !values.yes && process.stdin.isTTY ? createAsk() : undefined;
   const options = await resolveOptions(values, ask);
   ask?.close();

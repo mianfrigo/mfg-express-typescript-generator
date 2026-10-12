@@ -22,6 +22,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - run: npm ci
       - run: npm test -- --test-name-pattern postgres
         env:
           FULL: '1'
@@ -45,6 +46,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - run: npm ci
       - run: npm test -- --test-name-pattern "full-mongo|full-zod-mongo-auth|full-rxjs|full-auth|full-ci-mongo|full-openapi-auth"
         env:
           FULL: '1'

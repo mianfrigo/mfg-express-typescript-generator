@@ -13,6 +13,7 @@ jobs:
         with:
           node-version: 22
       - run: npm i -g pnpm yarn
+      - run: npm ci
       - run: npm test
         env:
           FULL: '1'

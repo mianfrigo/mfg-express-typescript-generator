@@ -14,6 +14,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - if: matrix.node == 22 && matrix.os == 'ubuntu-latest'
         run: npm i -g pnpm yarn
+      - run: npm ci
       - run: npm test
         env:
           FULL: ${{ matrix.node == 22 && matrix.os == 'ubuntu-latest' && '1' || '' }}

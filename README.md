@@ -6,7 +6,7 @@
 
 Scaffold an [Express 5](https://expressjs.com) + [TypeScript](https://www.typescriptlang.org) API in seconds, with the production basics already done: validation, auth, a database, migrations, OpenAPI docs, tests, CI and Docker are each one flag away.
 
-Zero runtime dependencies. Requires Node >= 20.19.
+One small runtime dependency ([`@clack/prompts`](https://www.npmjs.com/package/@clack/prompts), loaded only for the interactive wizard). Requires Node >= 20.19.
 
 ## Quick start
 
@@ -33,7 +33,11 @@ npx @mianfrigo/express-typescript-generator shop --yes \
 npx @mianfrigo/express-typescript-generator tiny --yes
 ```
 
-Without `--yes` you are asked a few yes/no questions: rate limiting, MongoDB, PostgreSQL (only if you said no to MongoDB), and then authentication and rxjs when a database is chosen. Everything else is flag-only.
+### Interactive wizard
+
+Run it with no flags in a terminal and you get an arrow-key wizard: pick **Minimal**, **API starter**, **Full** or **Custom**. Custom asks for a database, then a checklist of features (space to toggle). Options that need something else are greyed out with the reason (authentication and rxjs need a database; Swagger needs validation). Before creating anything it prints the equivalent command, so you learn the flags, and asks you to confirm. Esc or Ctrl+C cancels without writing anything.
+
+The wizard only runs on a terminal when nothing has been decided yet. Pass `--yes`, `--preset` or any feature flag and it is skipped; with only some flags given, you get plain yes/no questions for the rest. In scripts and CI (no terminal) it never runs.
 
 ## Which generator should you use?
 
