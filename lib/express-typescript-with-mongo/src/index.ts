@@ -7,7 +7,13 @@ const port = process.env.PORT || 3000;
 
 connectMongo()
   .then(() => {
-    const server = app.listen(port, () => {
+    // Express 5 hands a bind error (EADDRINUSE, EACCES) to this callback
+    const server = app.listen(port, (err?: Error) => {
+      if (err) {
+        console.error(`could not listen on port ${port}: ${err.message}`);
+        logger.error(`could not listen on port ${port}: ${err.message}`);
+        process.exit(1);
+      }
       logger.info(`connected to port ${port}`);
     });
 

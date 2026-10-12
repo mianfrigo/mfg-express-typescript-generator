@@ -1,6 +1,8 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
 import {
   cpSync,
   existsSync,
@@ -281,7 +283,7 @@ async function checkDbCrud(dir, flags, adminUrl) {
     assert.equal(seed.status, 0, `db:seed run ${i + 1}\n${seed.stdout}\n${seed.stderr}`);
   }
 
-  const port = 39500 + Math.floor(Math.random() * 400);
+  const port = await freePort();
   const child = spawn(process.execPath, ['dist/index.js'], {
     cwd: dir,
     env: { ...env, PORT: String(port) },
@@ -301,18 +303,21 @@ async function checkDbCrud(dir, flags, adminUrl) {
   const base = `http://127.0.0.1:${port}/api/v1`;
   try {
     let up = false;
+    let lastSeen = 'no response';
     // up to ~60 s: the first connection to a service container can be slow on CI
     for (let i = 0; i < 240 && !up && earlyExit === null; i++) {
       try {
-        up = (await fetch(`${base}/health`)).status === 200;
-      } catch {
-        /* not listening yet */
+        const res = await fetch(`${base}/health`);
+        lastSeen = `HTTP ${res.status}`;
+        up = res.status === 200;
+      } catch (e) {
+        lastSeen = String((e && e.cause && e.cause.code) || (e && e.message));
       }
       if (!up) await new Promise((r) => setTimeout(r, 250));
     }
     assert.ok(
       up,
-      `app did not boot against ${kind} (exit code: ${earlyExit}). Output:\n${appOutput.slice(-3000)}`
+      `app did not boot against ${kind} (exit code: ${earlyExit}, port ${port}, last: ${lastSeen}). Output:\n${appOutput.slice(-3000)}`
     );
     assert.equal((await fetch(`${base}/ready`)).status, 200, 'ready with a live db');
 
@@ -438,9 +443,47 @@ function checkCiEnv(dir) {
   assert.equal(r.status, 0, `npm test without .env\n${r.stdout}\n${r.stderr}`);
 }
 
+// A port that is already taken must fail loudly (Express 5 passes the bind error
+// to the listen callback), not log "connected" and sit idle.
+async function checkPortInUse(dir) {
+  // same wildcard bind the app uses (a 127.0.0.1-only bind would not conflict on Windows)
+  const blocker = createServer((_q, res) => res.end('someone else')).listen(0);
+  await once(blocker, 'listening');
+  const port = blocker.address().port;
+  const child = spawn(process.execPath, ['dist/index.js'], {
+    cwd: dir,
+    env: { ...process.env, PORT: String(port) },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let out = '';
+  child.stdout.on('data', (d) => (out += d));
+  child.stderr.on('data', (d) => (out += d));
+  try {
+    const exit = await Promise.race([
+      new Promise((resolve) => child.on('exit', (code) => resolve(code))),
+      new Promise((resolve) => setTimeout(() => resolve('still running'), 15000)),
+    ]);
+    assert.equal(exit, 1, `app must exit 1 when its port is taken, got ${exit}. Output:\n${out}`);
+    assert.match(out, /EADDRINUSE|address already in use/i);
+    assert.ok(!out.includes('connected to port'), 'must not claim success');
+  } finally {
+    child.kill('SIGKILL');
+    blocker.close();
+  }
+}
+
+// an OS-assigned free port: no random-range collisions between test runs
+async function freePort() {
+  const srv = createServer().listen(0);
+  await once(srv, 'listening');
+  const { port } = srv.address();
+  await new Promise((resolve) => srv.close(resolve));
+  return port;
+}
+
 // boots the compiled base app, hits /health, then SIGTERM must exit 0
 async function checkHealthAndShutdown(dir, openapi = false) {
-  const port = 39000 + Math.floor(Math.random() * 500);
+  const port = await freePort();
   const child = spawn(process.execPath, ['dist/index.js'], {
     cwd: dir,
     env: { ...process.env, PORT: String(port) },
@@ -597,6 +640,7 @@ for (const [name, flags] of Object.entries(MATRIX)) {
       if (name === 'full-base' || name === 'full-openapi') {
         await checkHealthAndShutdown(dir, flags.includes('--openapi'));
       }
+      if (name === 'full-base') await checkPortInUse(dir);
     }
   );
 }
@@ -1642,4 +1686,19 @@ test('release workflow also publishes create-expresskit, once per version, with 
   assert.ok(after.includes("steps.wrapper.outputs.exists != 'true'"));
   assert.ok(after.includes('npm publish --provenance --access public'));
   assert.ok(wf.indexOf('id: wrapper') > wf.indexOf('npm publish --provenance'), 'wrapper is published after the generator');
+});
+
+test('index.ts handles a failed bind instead of logging "connected" and idling (all variants)', () => {
+  for (const [name, flags] of [
+    ['listen-base', []],
+    ['listen-mongo', ['--mongo']],
+    ['listen-pg', ['--postgres']],
+  ]) {
+    const { dir, r } = gen(name, ['--yes', '--no-install', ...flags]);
+    assert.equal(r.status, 0, r.stderr);
+    const idx = read(dir, 'src/index.ts');
+    assert.match(idx, /app\.listen\(port, \(err\?: Error\) =>/, `${name}: listen callback takes the error`);
+    assert.ok(idx.includes('if (err)') && idx.includes('process.exit(1)'), `${name}: exits on a failed bind`);
+    assert.ok(idx.indexOf('if (err)') < idx.indexOf('connected to port'), `${name}: error is handled before success is logged`);
+  }
 });
