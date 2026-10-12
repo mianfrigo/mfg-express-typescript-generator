@@ -2,7 +2,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
-import { generateApp } from '../lib/generate.js';
+import { generateApp, previewApp } from '../lib/generate.js';
 import {
   createAsk,
   loadConfig,
@@ -41,6 +41,27 @@ try {
   const ask = !values.yes && process.stdin.isTTY ? createAsk() : undefined;
   const options = await resolveOptions(values, ask);
   ask?.close();
+
+  if (values['dry-run']) {
+    const { files, pkg: preview } = await previewApp(dest, options);
+    const features = ['db', 'auth', 'rxjs', 'limiter', 'zod', 'openapi', 'test', 'ci', 'docker']
+      .filter((k) => options[k])
+      .map((k) => (k === 'db' ? options.db : k));
+    console.log(
+      `\nDry run: nothing was written. A real run would create ${files.length} files in ${styleText('green', dest)}:\n`
+    );
+    for (const f of files) console.log(`  ${f}`);
+    console.log(
+      [
+        '',
+        `Options: ${features.length ? features.join(', ') : 'none (minimal)'}; package manager: ${options.pm}`,
+        `package.json: ${Object.keys(preview.dependencies).length} dependencies, ${Object.keys(preview.devDependencies).length} devDependencies`,
+        `scripts: ${Object.keys(preview.scripts).join(', ')}`,
+        'Run the same command without --dry-run to create it.',
+      ].join('\n')
+    );
+    process.exit(0);
+  }
 
   console.log(`\nBootstrapping Express app in ${styleText('green', dest)}\n`);
   await generateApp(dest, options);

@@ -117,6 +117,7 @@ tsconfig.json
 | `--no-install` | Skip dependency install |
 | `--preset minimal\|api\|full` | A bundle of flags, see below. It answers every question, so it implies `--yes`. |
 | `--no-config` | Ignore `.mfgrc.json` files |
+| `--dry-run` | Show the files, dependency counts and scripts a run would create, and write nothing (it still refuses an existing directory) |
 | `--no-agents` | Skip the generated `AGENTS.md` (a guidance file for AI coding agents and new contributors: commands, layout, conventions; it follows the options you chose) |
 | `-v, --version` | Print version |
 
