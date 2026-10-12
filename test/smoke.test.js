@@ -1179,3 +1179,58 @@ test('README documents every CLI flag and the main generated-app features', () =
   }
   assert.ok(!/needs `--mongo`/.test(readme), 'auth/rxjs work with either database');
 });
+
+test('generated README: Authentication and Swagger sections follow the flags', () => {
+  const both = gen('docs-both', ['--yes', '--no-install', '--postgres', '--auth', '--zod', '--openapi']);
+  assert.equal(both.r.status, 0, both.r.stderr);
+  const b = read(both.dir, 'README.md');
+  for (const present of [
+    '## API docs (Swagger UI)',
+    'http://localhost:3000/api/v1/docs',
+    'http://localhost:3000/api/v1/openapi.json',
+    '## Authentication',
+    'ada@example.com',
+    'grace@example.com',
+    'alan@example.com',
+    'password123',
+    'authToken',
+    'Authorization: Bearer',
+    '**Authorize**',
+    'POST /api/v1/auth/register',
+  ]) {
+    assert.ok(b.includes(present), `README (auth + openapi) should mention ${present}`);
+  }
+  assert.ok(!b.includes('{{'));
+
+  const docsOnly = gen('docs-openapi', ['--yes', '--no-install', '--zod', '--openapi']);
+  const d = read(docsOnly.dir, 'README.md');
+  assert.ok(d.includes('http://localhost:3000/api/v1/docs'));
+  assert.ok(!d.includes('## Authentication') && !d.includes('**Authorize**') && !d.includes('password123'));
+
+  const authOnly = gen('docs-auth', ['--yes', '--no-install', '--postgres', '--auth']);
+  const a = read(authOnly.dir, 'README.md');
+  assert.ok(a.includes('## Authentication') && a.includes('ada@example.com') && a.includes('authToken'));
+  assert.ok(!a.includes('Swagger UI') && !a.includes('**Authorize**') && !a.includes('/api/v1/docs'));
+
+  const plain = gen('docs-plain', ['--yes', '--no-install']);
+  const p = read(plain.dir, 'README.md');
+  for (const absent of ['Swagger', '## Authentication', 'password123', 'Authorize']) {
+    assert.ok(!p.includes(absent), `plain README must not mention ${absent}`);
+  }
+});
+
+test('npm README documents the Swagger route, the seeded users and how to authorize', () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  for (const topic of [
+    'http://localhost:3000/api/v1/docs',
+    'http://localhost:3000/api/v1/openapi.json',
+    'ada@example.com',
+    'grace@example.com',
+    'alan@example.com',
+    'password123',
+    '**Authorize**',
+    'authToken',
+  ]) {
+    assert.ok(readme.includes(topic), `README must mention ${topic}`);
+  }
+});

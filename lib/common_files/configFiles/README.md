@@ -49,7 +49,27 @@ Logs go to stdout: JSON when `NODE_ENV=production`, readable text otherwise.
 #{{postgres}} npm run dev
 #{{postgres}} ```
 
-#{{auth}} Seeded users (`ada@example.com`, `grace@example.com`, `alan@example.com`) use the password `password123`: development only, never use it in production.
+#{{openapi}} ## API docs (Swagger UI)
+
+#{{openapi}} With the app running, open **http://localhost:3000/api/v1/docs** (the port comes from `PORT`). The raw OpenAPI 3.1 document is at **http://localhost:3000/api/v1/openapi.json**.
+
+#{{openapi}} The spec is generated from the zod schemas in `src/validation/`, so request bodies always match what the API accepts. Both routes are public.
+
+#{{authdocs}} To call the protected routes from Swagger UI, get a token (see Authentication below), click **Authorize**, and paste the token without the `Bearer ` prefix.
+
+#{{auth}} ## Authentication
+
+#{{auth}} `/api/v1/user` needs an `Authorization: Bearer <token>` header. `/api/v1/auth/register`, `/api/v1/auth`, `/api/v1/health` and `/api/v1/ready` are public.
+
+#{{auth}} 1. **Get a user.** Run `npm run db:seed` and use a seeded user: `ada@example.com`, `grace@example.com` or `alan@example.com`, all with the password `password123` (development only, never use it in production). Or register your own with `POST /api/v1/auth/register` and `firstName`, `lastName`, `email` and a `password` of at least 8 characters.
+#{{auth}} 2. **Log in** with `POST /api/v1/auth` and `{ "email", "password" }`. The response contains `authToken`, valid for 24 hours.
+#{{auth}} 3. **Send it** on every request as `Authorization: Bearer <authToken>`.
+
+#{{auth}} ```bash
+#{{auth}} curl -s -X POST http://localhost:3000/api/v1/auth \
+#{{auth}}   -H 'content-type: application/json' \
+#{{auth}}   -d '{"email":"ada@example.com","password":"password123"}'
+#{{auth}} ```
 
 #{{ci}} ## CI
 #{{ci}} `.github/workflows/ci.yml` runs install, lint, build and tests on every push to `main` and on pull requests.
