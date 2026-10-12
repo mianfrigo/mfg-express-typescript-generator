@@ -11,10 +11,12 @@ One small runtime dependency ([`@clack/prompts`](https://www.npmjs.com/package/@
 ## Quick start
 
 ```bash
-npx @mianfrigo/express-typescript-generator my-api
+npm create expresskit@latest my-api
 cd my-api
 npm run dev          # http://localhost:3000/api/v1/health
 ```
+
+`npm create expresskit` runs [`create-expresskit`](https://www.npmjs.com/package/create-expresskit), a thin entry point to this package, so `npx @mianfrigo/express-typescript-generator my-api` is the same thing. With `npm create`, put `--` before flags (`npm create expresskit@latest my-api -- --preset api`); `pnpm create` and `yarn create` take them directly.
 
 Installed globally it is `mfg-express-generator my-api` (or `mfg-express-typescript-generator`). The default project name is `express-ts`.
 
