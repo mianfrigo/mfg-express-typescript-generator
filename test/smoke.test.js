@@ -508,12 +508,33 @@ const MATRIX = {
   'full-postgres-auth-rxjs': ['--postgres', '--auth', '--rxjs', '--zod', '--openapi'],
   'full-ci': ['--ci', '--postgres', '--auth', '--test'],
   'full-ci-mongo': ['--ci', '--mongo', '--auth', '--test'],
+  'full-pnpm': ['--pm', 'pnpm'],
+  'full-pnpm-postgres': ['--pm', 'pnpm', '--postgres', '--auth', '--zod', '--test'],
+  'full-yarn-postgres': ['--pm', 'yarn', '--postgres', '--auth', '--test'],
   'full-zod': ['--zod'],
   'full-openapi': ['--zod', '--openapi'],
   'full-openapi-auth': ['--zod', '--openapi', '--mongo', '--auth'],
   'full-zod-mongo-auth': ['--zod', '--mongo', '--auth'],
   'full-all': ['--mongo', '--auth', '--rxjs', '--limiter', '--test', '--docker', '--zod', '--openapi'],
   'full-postgres-all': ['--postgres', '--auth', '--limiter', '--zod', '--openapi', '--test', '--docker'],
+};
+
+const pmAvailable = (pm) => {
+  const r = process.platform === 'win32'
+    ? spawnSync(`${pm} --version`, { shell: true, encoding: 'utf8' })
+    : spawnSync(pm, ['--version'], { encoding: 'utf8' });
+  return r.status === 0;
+};
+const pmOf = (flags) => (flags.includes('--pm') ? flags[flags.indexOf('--pm') + 1] : 'npm');
+
+// run "<pm> run build" etc. with the project's own package manager
+const pmRun = (pm, args, cwd) => {
+  const win = process.platform === 'win32';
+  const opts = { cwd, encoding: 'utf8' };
+  const r = win
+    ? spawnSync([pm, ...args].join(' '), { ...opts, shell: true })
+    : spawnSync(pm, args, opts);
+  assert.equal(r.status, 0, `${pm} ${args.join(' ')}\n${r.stdout}\n${r.stderr}`);
 };
 
 const npm = (args, cwd) => {
@@ -527,13 +548,19 @@ const npm = (args, cwd) => {
 for (const [name, flags] of Object.entries(MATRIX)) {
   test(
     `FULL: ${name} installs, builds, lints`,
-    { skip: !process.env.FULL, timeout: 600_000 },
+    {
+      skip: !process.env.FULL
+        ? true
+        : !pmAvailable(pmOf(flags)) && `${pmOf(flags)} is not installed`,
+      timeout: 600_000,
+    },
     async () => {
+      const pm = pmOf(flags);
       const { dir, r } = gen(name, ['--yes', ...flags]); // runs the real install
       assert.equal(r.status, 0, r.stderr);
-      npm(['run', 'build'], dir);
-      npm(['run', 'lint'], dir);
-      if (flags.includes('--test')) npm(['test'], dir);
+      pmRun(pm, ['run', 'build'], dir);
+      pmRun(pm, ['run', 'lint'], dir);
+      if (flags.includes('--test')) pmRun(pm, ['test'], dir);
       if (flags.includes('--zod')) checkValidate(dir, flags);
       if (flags.includes('--openapi')) checkOpenapiDoc(dir, flags);
       if (process.env.POSTGRES_URL && flags.includes('--postgres')) {
@@ -1286,5 +1313,26 @@ test('every path AGENTS.md mentions exists in the generated project', () => {
       if (p.startsWith('src/generated')) continue; // created by postinstall (prisma generate)
       assert.ok(has(dir, p), `${name}: AGENTS.md mentions ${p}, which does not exist`);
     }
+  }
+});
+
+test('--pm pnpm writes the build-script allow-list pnpm 10+ requires', () => {
+  const plain = gen('pnpm-plain', ['--yes', '--no-install', '--pm', 'pnpm']);
+  assert.equal(plain.r.status, 0, plain.r.stderr);
+  const y = read(plain.dir, 'pnpm-workspace.yaml');
+  assert.match(y, /^onlyBuiltDependencies:\n {2}- esbuild$/m);
+  assert.match(y, /^allowBuilds:\n {2}esbuild: true$/m);
+  assert.ok(!y.includes('prisma'), 'plain app has no prisma');
+
+  const pg = gen('pnpm-pg', ['--yes', '--no-install', '--pm', 'pnpm', '--postgres']);
+  const p = read(pg.dir, 'pnpm-workspace.yaml');
+  for (const present of ['- prisma', "- '@prisma/engines'", 'prisma: true', "'@prisma/engines': true"]) {
+    assert.ok(p.includes(present), `postgres allow-list should contain ${present}`);
+  }
+  assert.ok(p.includes("'@scarf/scarf': false"), 'telemetry package stays blocked');
+
+  for (const pm of ['npm', 'yarn']) {
+    const other = gen(`pm-${pm}`, ['--yes', '--no-install', '--pm', pm]);
+    assert.ok(!has(other.dir, 'pnpm-workspace.yaml'), `${pm} projects get no pnpm file`);
   }
 });
