@@ -407,8 +407,51 @@ async function checkDbCrud(dir, flags, adminUrl) {
       assert.match(inv.body.error.message, /email/);
     }
 
-    assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 200);
-    assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 404);
+    if (flags.includes('--roles')) {
+      // delete is admin-only; the roles scenario below deletes as an admin
+      assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 403);
+    } else {
+      assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 200);
+      assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 404);
+    }
+
+    if (flags.includes('--roles')) {
+      const decode = (t) => JSON.parse(Buffer.from(t.split('.')[1], 'base64url').toString());
+      const loginAs = async (email) => {
+        const r = await call('POST', '/auth', { email, password: 'password123' });
+        assert.equal(r.status, 200, `login ${email}`);
+        return r.body;
+      };
+      const user = await loginAs('reg@x.co');
+      assert.equal(decode(user.authToken).role, 'user', 'a registered user is a plain user');
+      assert.equal(user.auth_user.role, 'user');
+
+      const victim = await call('POST', '/user', { firstName: 'V', lastName: 'V', email: 'victim@x.co' }, user.authToken);
+      assert.equal(victim.status, 201);
+      const vid = idOf(victim.body);
+
+      // a plain user can neither delete nor promote
+      assert.equal((await call('DELETE', `/user/${vid}`, undefined, user.authToken)).status, 403);
+      assert.equal((await call('PATCH', `/user/${vid}/role`, { role: 'admin' }, user.authToken)).status, 403);
+      // the role cannot be set through the normal write routes
+      const sneaky = await call('PUT', `/user/${vid}`, { firstName: 'V', role: 'admin' }, user.authToken);
+      assert.equal(sneaky.status, 200);
+      assert.equal(sneaky.body.role, 'user', 'PUT must ignore role');
+
+      const admin = await loginAs('admin@example.com');
+      assert.equal(decode(admin.authToken).role, 'admin', 'the seeded admin');
+      assert.equal((await call('PATCH', `/user/${vid}/role`, { role: 'root' }, admin.authToken)).status, 400);
+      assert.equal((await call('PATCH', `/user/${missing}/role`, { role: 'admin' }, admin.authToken)).status, 404);
+
+      // promote the registered user: the next login carries the new role
+      const promoted = await call('PATCH', `/user/${idOf(user.auth_user)}/role`, { role: 'admin' }, admin.authToken);
+      assert.equal(promoted.status, 200);
+      assert.equal(promoted.body.role, 'admin');
+      assert.equal(promoted.body.password, undefined, 'no hash in the response');
+      const again = await loginAs('reg@x.co');
+      assert.equal(decode(again.authToken).role, 'admin');
+      assert.equal((await call('DELETE', `/user/${vid}`, undefined, again.authToken)).status, 200);
+    }
 
     if (process.platform !== 'win32') {
       child.kill('SIGTERM');
@@ -479,6 +522,28 @@ async function freePort() {
   const { port } = srv.address();
   await new Promise((resolve) => srv.close(resolve));
   return port;
+}
+
+// The committed migration is the one prisma would generate for the schema (so
+// "prisma migrate dev" does not immediately want a new migration).
+function checkMigrationMatchesSchema(dir) {
+  const prismaCli = path.join(dir, 'node_modules', 'prisma', 'build', 'index.js');
+  const r = spawnSync(
+    process.execPath,
+    [prismaCli, 'migrate', 'diff', '--from-empty', '--to-schema', 'prisma/schema.prisma', '--script'],
+    { cwd: dir, encoding: 'utf8', env: { ...process.env, DATABASE_URL: 'postgresql://x:y@localhost:5432/z' } }
+  );
+  assert.equal(r.status, 0, r.stderr);
+  const norm = (sql) =>
+    sql
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .filter((l) => l.trim() && !l.startsWith('-- ') && !l.includes('CREATE SCHEMA'))
+      .map((l) => l.trim())
+      .join('\n');
+  const mig = readdirSync(path.join(dir, 'prisma/migrations')).find((m) => m.endsWith('_init'));
+  const committed = readFileSync(path.join(dir, 'prisma/migrations', mig, 'migration.sql'), 'utf8');
+  assert.equal(norm(committed), norm(r.stdout), 'committed migration matches the schema');
 }
 
 // boots the compiled base app, hits /health, then SIGTERM must exit 0
@@ -576,6 +641,10 @@ const MATRIX = {
   'full-pnpm': ['--pm', 'pnpm'],
   'full-pnpm-postgres': ['--pm', 'pnpm', '--postgres', '--auth', '--zod', '--test'],
   'full-yarn-postgres': ['--pm', 'yarn', '--postgres', '--auth', '--test'],
+  'full-mongo-roles': ['--mongo', '--auth', '--roles', '--zod', '--openapi'],
+  'full-postgres-roles': ['--postgres', '--auth', '--roles', '--zod', '--openapi', '--test'],
+  'full-postgres-roles-rxjs': ['--postgres', '--auth', '--roles', '--rxjs'],
+  'full-mongo-roles-rxjs': ['--mongo', '--auth', '--roles', '--rxjs', '--limiter'],
   'full-zod': ['--zod'],
   'full-openapi': ['--zod', '--openapi'],
   'full-openapi-auth': ['--zod', '--openapi', '--mongo', '--auth'],
@@ -628,6 +697,7 @@ for (const [name, flags] of Object.entries(MATRIX)) {
       if (flags.includes('--test')) pmRun(pm, ['test'], dir);
       if (flags.includes('--zod')) checkValidate(dir, flags);
       if (flags.includes('--openapi')) checkOpenapiDoc(dir, flags);
+      if (flags.includes('--postgres')) checkMigrationMatchesSchema(dir);
       if (process.env.POSTGRES_URL && flags.includes('--postgres')) {
         await checkDbCrud(dir, flags, process.env.POSTGRES_URL);
       }
@@ -1717,4 +1787,67 @@ test('index.ts handles a failed bind instead of logging "connected" and idling (
     assert.ok(idx.includes('if (err)') && idx.includes('process.exit(1)'), `${name}: exits on a failed bind`);
     assert.ok(idx.indexOf('if (err)') < idx.indexOf('connected to port'), `${name}: error is handled before success is logged`);
   }
+});
+
+test('--roles needs --auth (exit 1 otherwise)', () => {
+  const { r } = gen('roles-noauth', ['--yes', '--no-install', '--mongo', '--roles']);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /--roles requires --auth/);
+});
+
+test('--roles (mongo): role field, requireRole, admin-only delete, role route, seed admin, docs', () => {
+  const { dir, r } = gen('roles-mongo', [
+    '--yes', '--no-install', '--mongo', '--auth', '--roles', '--zod', '--openapi', '--limiter',
+  ]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(read(dir, 'src/models/user.schema.ts').includes("enum: ['user', 'admin']"));
+  const mw = read(dir, 'src/middleware/auth.ts');
+  assert.ok(mw.includes('requireRole') && mw.includes('req.auth'));
+  const users = read(dir, 'src/routes/user.route.ts');
+  assert.ok(users.includes("router.delete('/:id', mainLimiter, requireRole('admin')"));
+  assert.ok(!users.includes("router.delete('/:id', mainLimiter, userController.removeUser)"));
+  const roleRoute = read(dir, 'src/routes/role.route.ts');
+  assert.ok(roleRoute.includes("'/:id/role'") && roleRoute.includes("requireRole('admin')"));
+  assert.ok(roleRoute.includes('validate(roleSchema)'));
+  assert.ok(read(dir, 'src/validation/role.validation.ts').includes("z.enum(['user', 'admin'])"));
+  assert.ok(read(dir, 'src/routes/index.ts').includes("router.use('/user', requireAuth, roleRoute)"));
+  assert.ok(read(dir, 'src/controllers/role.controller.ts').includes('setRole'));
+  assert.ok(read(dir, 'src/controllers/auth.controller.ts').includes('role: user.role'));
+  assert.ok(read(dir, 'scripts/seed.ts').includes('admin@example.com'));
+  assert.ok(read(dir, 'src/openapi.ts').includes("'/user/{id}/role'"));
+  assert.match(read(dir, 'README.md'), /## Roles/);
+  assert.ok(read(dir, 'AGENTS.md').includes('requireRole'));
+  assert.ok(!allTs(dir).includes('{{'));
+});
+
+test('--roles (postgres): column in the schema and the committed migration, role controller', () => {
+  const { dir, r } = gen('roles-pg', ['--yes', '--no-install', '--postgres', '--auth', '--roles', '--rxjs']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(read(dir, 'prisma/schema.prisma'), /role\s+String\s+@default\("user"\)/);
+  const mig = readdirSync(path.join(dir, 'prisma/migrations')).find((m) => m.endsWith('_init'));
+  assert.ok(read(dir, `prisma/migrations/${mig}/migration.sql`).includes('"role" TEXT NOT NULL DEFAULT \'user\''));
+  const ctl = read(dir, 'src/controllers/role.controller.ts');
+  assert.ok(ctl.includes('prisma.user.update') && ctl.includes('rxjs'));
+  assert.ok(read(dir, 'src/controllers/auth.controller.ts').includes('role: user.role'));
+  assert.ok(!allTs(dir).includes('{{'));
+  assert.ok(!read(dir, 'prisma/schema.prisma').includes('{{'));
+});
+
+test('plain --auth output has no roles artifacts', () => {
+  for (const [name, flags] of [['norole-mongo', ['--mongo']], ['norole-pg', ['--postgres']]]) {
+    const { dir, r } = gen(name, ['--yes', '--no-install', '--auth', ...flags]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(!has(dir, 'src/routes/role.route.ts') && !has(dir, 'src/controllers/role.controller.ts'));
+    const text = allTs(dir) + read(dir, 'README.md') + read(dir, 'AGENTS.md');
+    assert.ok(!/requireRole|setRole|admin@example/.test(text), `${name}: no roles text`);
+    if (has(dir, 'prisma/schema.prisma')) {
+      assert.ok(!read(dir, 'prisma/schema.prisma').includes('role'), 'no role column');
+    }
+    assert.ok(!read(dir, 'src/middleware/auth.ts').includes('req.auth'));
+  }
+});
+
+test('README documents --roles and AGENTS.md follows the flag', () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  assert.ok(readme.includes('--roles') && readme.includes('requireRole'));
 });

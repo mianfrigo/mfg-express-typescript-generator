@@ -2,6 +2,7 @@ import { z } from 'zod';
 //{{auth}} import { loginSchema, registerSchema } from './validation/auth.validation';
 import { createUserSchema } from './validation/user.validation';
 import { updateUserSchema } from './validation/user.validation';
+//{{roles}} import { roleSchema } from './validation/role.validation';
 
 // The spec is assembled from the same zod schemas the routes validate with, so
 // request bodies cannot drift from what the API accepts.
@@ -97,6 +98,19 @@ export const openapiDocument = {
         responses: { 200: { description: 'Deleted' }, 404: { description: 'Not found' } },
       },
     },
+//{{roles}}     '/user/{id}/role': {
+//{{roles}}       patch: {
+//{{roles}}         summary: 'Promote or demote a user (admin only)',
+//{{roles}}         parameters: [id],
+//{{roles}}         requestBody: body(roleSchema),
+//{{roles}}         responses: {
+//{{roles}}           200: { description: 'Updated' },
+//{{roles}}           400: { description: 'Invalid role' },
+//{{roles}}           403: { description: 'Caller is not an admin' },
+//{{roles}}           404: { description: 'Not found' },
+//{{roles}}         },
+//{{roles}}       },
+//{{roles}}     },
 //{{auth}}     '/auth': {
 //{{auth}}       post: {
 //{{auth}}         summary: 'Log in and receive a JWT',

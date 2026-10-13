@@ -108,6 +108,7 @@ tsconfig.json
 | `--postgres` | PostgreSQL with Prisma 7: schema, initial migration, `docker-compose.yml`, `db:migrate` / `db:deploy` / `db:seed` (exclusive with `--mongo`) |
 | **Features** | |
 | `--auth` | `POST /api/v1/auth/register` and `POST /api/v1/auth` (JWT), and a `Bearer` token on `/api/v1/user`; needs a database; writes a random `SECRET_KEY` to `.env` |
+| `--roles` | `user` / `admin` roles on top of `--auth`: the role in the token, `requireRole('admin')`, admin-only `DELETE /user/:id`, `PATCH /user/:id/role`, a seeded `admin@example.com` (needs `--auth`) |
 | `--zod` | Validate request bodies with zod (`src/validation/`); invalid input is a 400 naming each field |
 | `--openapi` | Swagger UI at `/api/v1/docs` and the spec at `/api/v1/openapi.json`, generated from the zod schemas (needs `--zod`) |
 | `--limiter` | Rate limiting with `express-rate-limit` on the routes |

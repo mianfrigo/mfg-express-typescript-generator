@@ -33,12 +33,14 @@ test('flags set every option without prompting', async () => {
     zod: false,
     openapi: false,
     ci: false,
+    roles: false,
     agents: true,
     docker: false,
     test: false,
     zod: false,
     openapi: false,
     ci: false,
+    roles: false,
     agents: true,
     git: 'auto',
     here: false,
@@ -59,6 +61,7 @@ test('--yes never prompts and defaults every option to false', async () => {
     zod: false,
     openapi: false,
     ci: false,
+    roles: false,
     agents: true,
     git: 'auto',
     here: false,
@@ -317,4 +320,19 @@ test('--dry-run is a command-line flag only', () => {
     /"dry-run" can only be passed on the command line/
   );
   assert.equal(parseCli(['--dry-run']).values['dry-run'], true);
+});
+
+test('--roles is flag-only, needs --auth, and is an allowed config key', async () => {
+  const ask = async (q) => {
+    assert.ok(!/role/i.test(q), 'no prompt for --roles');
+    return false;
+  };
+  const ok = await resolveOptions(parseCli(['--mongo', '--auth', '--roles'], {}).values, ask);
+  assert.equal(ok.roles, true);
+  assert.equal((await run(['--mongo', '--auth'], ask)).roles, false);
+  await assert.rejects(
+    resolveOptions(parseCli(['--mongo', '--roles'], {}).values, ask),
+    /--roles requires --auth/
+  );
+  assert.doesNotThrow(() => parseCli(['--mongo', '--auth'], { config: { roles: true } }));
 });

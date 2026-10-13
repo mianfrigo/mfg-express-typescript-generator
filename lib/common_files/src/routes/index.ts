@@ -3,6 +3,7 @@ import { Router } from 'express';
 //{{postgres}} import { prisma } from '../config/prisma';
 //{{auth}} import { requireAuth } from '../middleware/auth';
 //{{auth}} import authRoute from './auth.route';
+//{{roles}} import roleRoute from './role.route';
 import userRoute from './user.route';
 
 const router = Router();
@@ -24,6 +25,7 @@ router.get('/ready', async (_req, res) => {
 });
 
 //{{auth}} router.use('/auth', authRoute);
+//{{roles}} router.use('/user', requireAuth, roleRoute);
 //{{auth}} router.use('/user', requireAuth, userRoute);
 //{{!auth}} router.use('/user', userRoute);
 

@@ -71,6 +71,17 @@ Logs go to stdout: JSON when `NODE_ENV=production`, readable text otherwise.
 #{{auth}}   -d '{"email":"ada@example.com","password":"password123"}'
 #{{auth}} ```
 
+#{{roles}} ## Roles
+
+#{{roles}} Users have a `role`: `user` (the default for everyone who registers) or `admin`. The role is in the access token, and `requireAuth` puts it on `req.auth`.
+
+#{{roles}} - `DELETE /api/v1/user/:id` is admin-only; a normal user gets 403.
+#{{roles}} - `PATCH /api/v1/user/:id/role` with `{ "role": "admin" }` promotes or demotes a user (admin-only).
+#{{roles}} - `npm run db:seed` also creates `admin@example.com` (role `admin`, same development-only password).
+#{{roles}} - Protect your own routes with `requireRole('admin')` after `requireAuth` (see `src/middleware/auth.ts`).
+
+#{{roles}} A role is read from the token, so a promotion applies on the next login (or token refresh).
+
 #{{ci}} ## CI
 #{{ci}} `.github/workflows/ci.yml` runs install, lint, build and tests on every push to `main` and on pull requests.
 

@@ -49,9 +49,14 @@ export default class AuthController {
       throw new createHttpError.Unauthorized('Invalid credentials');
     }
 
-    const token = jwt.sign({ auth_id: user.id, email: user.email }, secret, {
-      expiresIn: '24h',
-    });
+//{{!roles}}     const token = jwt.sign({ auth_id: user.id, email: user.email }, secret, {
+//{{!roles}}       expiresIn: '24h',
+//{{!roles}}     });
+//{{roles}}     const token = jwt.sign(
+//{{roles}}       { auth_id: user.id, email: user.email, role: user.role },
+//{{roles}}       secret,
+//{{roles}}       { expiresIn: '24h' }
+//{{roles}}     );
     const { exp } = jwt.decode(token) as { exp: number };
     const { password: _hash, ...authUser } = user;
     res.status(200).json({
