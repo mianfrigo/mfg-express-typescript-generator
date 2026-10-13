@@ -10,7 +10,6 @@ connectDb()
     // Express 5 hands a bind error (EADDRINUSE, EACCES) to this callback
     const server = app.listen(port, (err?: Error) => {
       if (err) {
-        console.error(`could not listen on port ${port}: ${err.message}`);
         logger.error(`could not listen on port ${port}: ${err.message}`);
         process.exit(1);
       }
@@ -29,7 +28,6 @@ connectDb()
     process.on('SIGINT', shutdown);
   })
   .catch((err) => {
-    console.error(err);
     logger.error(String(err));
     process.exit(1);
   });

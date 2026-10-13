@@ -24,9 +24,9 @@ export default class AuthController {
       );
       return;
     }
-    if (password.length < 8) {
+    if (password.length < 8 || Buffer.byteLength(password) > 72) {
       next(
-        new createHttpError.BadRequest('password must be at least 8 characters')
+        new createHttpError.BadRequest('password must be 8 to 72 bytes')
       );
       return;
     }

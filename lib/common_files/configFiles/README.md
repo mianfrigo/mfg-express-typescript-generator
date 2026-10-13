@@ -75,6 +75,8 @@ Logs go to stdout: JSON when `NODE_ENV=production`, readable text otherwise.
 #{{auth}}   -d '{"email":"ada@example.com","password":"password123"}'
 #{{auth}} ```
 
+#{{auth}} A user can change only their own record (`PUT /api/v1/user/:id` answers 403 for someone else).
+
 #{{roles}} ## Roles
 
 #{{roles}} Users have a `role`: `user` (the default for everyone who registers) or `admin`. The role is in the access token, and `requireAuth` puts it on `req.auth`.

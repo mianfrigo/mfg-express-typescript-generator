@@ -15,14 +15,23 @@ const statusOf = (err: HttpError & { code?: number }) => {
 
 export const handleError = (
   err: HttpError,
-  _req: Request,
+  req: Request,
   res: Response,
-  _next: NextFunction
+  next: NextFunction
 ) => {
+  // the response already started: let Express close the connection
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
   const statusCode = statusOf(err);
-  logger.error(
-    `statusCode: ${statusCode}; message: ${err.message}; stack: ${err.stack};`
-  );
+  // the query string may hold secrets, so only the path is logged
+  const where = `${req.method} ${req.originalUrl.split('?')[0]}`;
+  if (statusCode >= 500) {
+    logger.error(`${where} ${statusCode}: ${err.message}; stack: ${err.stack}`);
+  } else {
+    logger.warn(`${where} ${statusCode}: ${err.message}`);
+  }
   // never echo internals (db names, stack hints) for server errors or duplicate keys
   const message =
     statusCode >= 500

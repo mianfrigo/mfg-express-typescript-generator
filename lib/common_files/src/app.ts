@@ -22,7 +22,6 @@ app.use(morgan(morganConfig));
 app.use(helmet());
 app.use(cors(corsOptionsWhiteList));
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
 
 // API docs (public)
 //{{openapi}} app.get('/api/v1/openapi.json', (_req, res) => {
