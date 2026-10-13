@@ -242,7 +242,7 @@ All under `/api/v1`.
 |---|---|
 | `GET /api/v1/health` | liveness |
 | `GET /api/v1/ready` | readiness: pings the database, 503 when it is unreachable |
-| `GET /api/v1/user?page=1&limit=20` | `{ data, meta: { page, limit, total, totalPages } }`; `limit` defaults to 20 and is capped at 100 |
+| `GET /api/v1/user?page=1&limit=20` | `{ data, meta }` where `meta` is `{ page, limit, total, totalPages }`; `limit` defaults to 20 and is capped at 100 |
 | `GET`, `PUT`, `DELETE /api/v1/user/:id`, `POST /api/v1/user` | CRUD; the password hash is never returned |
 | `POST /api/v1/auth/register`, `POST /api/v1/auth` | with `--auth` |
 | `GET /api/v1/docs`, `GET /api/v1/openapi.json` | with `--openapi` |
@@ -309,47 +309,6 @@ docker compose up -d        # local MongoDB matching MONGO_DB in .env
 npm run db:seed
 npm run dev
 ```
-
-### Docker and CI
-
-With `--docker`, `docker compose up --build` runs the whole stack: the database, the migrations (PostgreSQL) and the app, in order. `docker run --env-file .env -p 3000:3000 <image>` runs just the app image. With `--ci` the workflow starts the same database as a service container so the tests can import the app.
-
----
-
-## 🔄 Migrating
-
-**From 1.x**
-
-- Webpack, nodemon and the airbnb ESLint config are gone; build is plain `tsc`, dev is `tsx watch`.
-- Needs Node >= 20.19 (Express 5, Mongoose 9, ESLint 10).
-- `auto-bind` and `mongoose-unique-validator` are removed; email uniqueness is a database unique index (duplicate gives HTTP 409).
-
-**Behavior changes inside 2.x**
-
-- 2.1: with `--auth`, `/api/v1/user` requires a `Bearer` token.
-- 2.4: apps log to stdout and no longer write `logs/*.log`.
-- 2.5: `GET /api/v1/user` returns `{ data, meta }`, not a bare array; `MONGO_DB` defaults to `mongodb://localhost:27017/app`.
-
-See [CHANGELOG.md](CHANGELOG.md) for the full list.
-
----
-
-## 🛠️ Development
-
-```bash
-npm test                # fast checks (generates into temp directories, no install)
-FULL=1 npm test         # also installs, builds and lints every flag combination
-```
-
-`FULL=1` additionally checks compiled output at runtime (validation, auth guard, health, pagination, stdout logging). With `POSTGRES_URL` and/or `MONGO_URL` set it boots the generated apps against those real databases and drives CRUD, auth and seeding over HTTP. CI does this in the `database` workflow, and the `docker` workflow runs `docker compose up --build` for both databases.
-
-Dependency versions of generated apps are pinned in `lib/generate.js`. A weekly workflow re-runs the full matrix and lists pins that are behind the registry. `typescript` (typescript-eslint peer range) and `vitest` (vitest 4 crashes the npm 10 resolver) are held back on purpose.
-
-### Releasing
-
-1. Move the changelog entries under a new version heading and bump `version` in `package.json` (a test fails if they disagree).
-2. Merge to `main`, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
-3. The `release` workflow checks the tag matches `package.json`, runs `FULL=1 npm test`, and publishes with provenance. It needs an `NPM_TOKEN` repository secret (a granular token with publish rights on the package and 2FA bypass).
 
 ---
 
