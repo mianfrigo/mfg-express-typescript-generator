@@ -1,14 +1,49 @@
 ![express-typescript](https://github.com/mianfrigo/mfg-express-typescript-generator/blob/main/express-typescript-draf.png?raw=true)
 
-# @mianfrigo/express-typescript-generator
+<h1 align="center">@mianfrigo/express-typescript-generator</h1>
 
-[![npm](https://badgen.net/npm/v/@mianfrigo/express-typescript-generator)](https://www.npmjs.com/package/@mianfrigo/express-typescript-generator) ![license](https://badgen.net/badge/license/MIT/green) [![CI](https://github.com/mianfrigo/mfg-express-typescript-generator/actions/workflows/test.yml/badge.svg)](https://github.com/mianfrigo/mfg-express-typescript-generator/actions/workflows/test.yml) [![downloads](https://img.shields.io/npm/dm/@mianfrigo/express-typescript-generator)](https://www.npmjs.com/package/@mianfrigo/express-typescript-generator)
+<p align="center">
+  Scaffold an <a href="https://expressjs.com">Express 5</a> + <a href="https://www.typescriptlang.org">TypeScript</a> API in seconds, with the production basics already done.
+</p>
 
-Scaffold an [Express 5](https://expressjs.com) + [TypeScript](https://www.typescriptlang.org) API in seconds, with the production basics already done: validation, auth, a database, migrations, OpenAPI docs, tests, CI and Docker are each one flag away.
+<p align="center">
+  <a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator"><img alt="npm" src="https://badgen.net/npm/v/@mianfrigo/express-typescript-generator"></a>
+  <img alt="license" src="https://badgen.net/badge/license/MIT/green">
+  <a href="https://github.com/mianfrigo/mfg-express-typescript-generator/actions/workflows/test.yml"><img alt="CI" src="https://github.com/mianfrigo/mfg-express-typescript-generator/actions/workflows/test.yml/badge.svg"></a>
+  <a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator"><img alt="downloads" src="https://img.shields.io/npm/dm/@mianfrigo/express-typescript-generator"></a>
+</p>
 
-One small runtime dependency ([`@clack/prompts`](https://www.npmjs.com/package/@clack/prompts), loaded only for the interactive wizard). Requires Node >= 20.19.
+---
 
-## Quick start
+## ✨ Features
+
+- **Pick only what you need** – a database with migrations, login, validation, Swagger, tests, CI and Docker are each one flag away.
+- **PostgreSQL (Prisma 7) or MongoDB (mongoose 9)** – schema, committed migration, compose file and seed data included.
+- **Auth that goes beyond a demo** – JWT login, roles (`user` / `admin`) and rotating refresh tokens with reuse detection.
+- **Validated input, living docs** – zod schemas drive request validation and the OpenAPI document served by Swagger UI.
+- **Production basics by default** – `/health` and `/ready`, graceful shutdown, stdout logs, pagination, `.env.example`, an `AGENTS.md` for AI agents.
+- **Verified, not hoped for** – option combinations are generated, installed, built, linted and run in CI against real databases, with npm, pnpm and yarn.
+- **Lean** – one small runtime dependency ([`@clack/prompts`](https://www.npmjs.com/package/@clack/prompts), only for the wizard). Needs Node >= 20.19.
+
+---
+
+## 📦 Installation
+
+Nothing to install: run it with `npm create` or `npx`.
+
+```bash
+npm create express-blueprint@latest my-api
+# or
+npx @mianfrigo/express-typescript-generator my-api
+# or install globally, then run: mfg-express-generator my-api
+npm install -g @mianfrigo/express-typescript-generator
+```
+
+`npm create express-blueprint` runs [`create-express-blueprint`](https://www.npmjs.com/package/create-express-blueprint), a thin entry point to this package. With `npm create`, put `--` before flags (`npm create express-blueprint@latest my-api -- --preset api`); `pnpm create` and `yarn create` take them directly.
+
+---
+
+## ⚡ Quick start
 
 ```bash
 npm create express-blueprint@latest my-api
@@ -16,9 +51,7 @@ cd my-api
 npm run dev          # http://localhost:3000/api/v1/health
 ```
 
-`npm create express-blueprint` runs [`create-express-blueprint`](https://www.npmjs.com/package/create-express-blueprint), a thin entry point to this package, so `npx @mianfrigo/express-typescript-generator my-api` is the same thing. With `npm create`, put `--` before flags (`npm create express-blueprint@latest my-api -- --preset api`); `pnpm create` and `yarn create` take them directly.
-
-Installed globally it is `mfg-express-generator my-api` (or `mfg-express-typescript-generator`). The default project name is `express-ts`.
+The default project name is `express-ts`.
 
 ### Recipes
 
@@ -37,11 +70,13 @@ npx @mianfrigo/express-typescript-generator tiny --yes
 
 ### Interactive wizard
 
-Run it with no flags in a terminal and you get an arrow-key wizard: pick **Minimal**, **API starter**, **Full** or **Custom**. Custom asks for a database, then a checklist of features (space to toggle). Options that need something else are greyed out with the reason (authentication and rxjs need a database; Swagger needs validation). Before creating anything it prints the equivalent command, so you learn the flags, and asks you to confirm. Esc or Ctrl+C cancels without writing anything.
+Run it with no flags in a terminal and you get an arrow-key wizard: pick **Minimal**, **API starter**, **Full** or **Custom**. Custom asks for a database, then a checklist of features (space to toggle) and, with authentication, roles and refresh tokens. Options that need something else are greyed out with the reason. Before creating anything it prints the equivalent command and asks you to confirm; Esc or Ctrl+C cancels without writing anything.
 
-The wizard only runs on a terminal when nothing has been decided yet. Pass `--yes`, `--preset` or any feature flag and it is skipped; with only some flags given, you get plain yes/no questions for the rest. In scripts and CI (no terminal) it never runs.
+The wizard only runs on a terminal when nothing has been decided yet. Pass `--yes`, `--preset` or any feature flag and it is skipped; in scripts and CI it never runs.
 
-## Which generator should you use?
+---
+
+## 🤔 Which generator should you use?
 
 There are good lean generators, for example [express-generator-typescript](https://www.npmjs.com/package/express-generator-typescript): a small Express + TypeScript skeleton with no ORM, on a recent Node. If that is what you want, use it.
 
@@ -50,16 +85,43 @@ This package is for when you want the next layer wired up and verified, and stil
 | You want | Here |
 |---|---|
 | A database with migrations | `--postgres` (Prisma) or `--mongo` (mongoose), a local compose file, seed data |
-| Login and protected routes | `--auth` (JWT, bcrypt, `requireAuth`) |
+| Login and protected routes | `--auth` (JWT, bcrypt, `requireAuth`), `--roles`, `--refresh-tokens` |
 | Validated input and living API docs | `--zod`, `--openapi` (Swagger UI from the same schemas) |
 | Tests, CI and containers | `--test`, `--ci`, `--docker` (full-stack `docker compose up --build`) |
 | Production basics by default | `/health` and `/ready`, graceful shutdown, stdout logs, pagination, `.env.example`, `AGENTS.md` for AI agents |
 
 A matrix of option combinations is generated, installed, built, linted and run in CI, against real PostgreSQL and MongoDB, with npm, pnpm and yarn, and a release is blocked if any of it fails.
 
+---
+
+## 🧱 Architecture
+
+The generated app is layered, which suits a CRUD API. To add a resource, copy the user controller and route.
+
+```
+src/
+├── index.ts          starts the server: .env, database, listen, graceful shutdown
+├── app.ts            the Express app only (middleware, /api/v1 routes, error handlers)
+├── config/           CORS, request logging, logger, database connection
+├── routes/           map URLs to controllers (index.ts mounts them)
+├── controllers/      read the request, call the data layer, send the response
+├── middleware/       auth, validation, rate limiting, error handler
+├── models/           mongoose models (--mongo)
+├── validation/       zod schemas (--zod)
+├── services/         refresh tokens (--refresh-tokens)
+├── utils/            pagination helpers
+└── openapi.ts        the OpenAPI document (--openapi)
+prisma/               schema and committed migrations (--postgres)
+scripts/seed.ts       idempotent sample users
+test/                 vitest + supertest (--test)
+```
+
 ### What you get, for real
 
 This is the real file list from a run of `--postgres --auth --zod --openapi --test --ci --docker` (plus `.env` and `.gitignore`, without `node_modules`):
+
+<details>
+<summary>Show all 34 files</summary>
 
 ```text
 .dockerignore
@@ -98,7 +160,11 @@ test/health.test.ts
 tsconfig.json
 ```
 
-## Options
+</details>
+
+---
+
+## 🎛️ Options
 
 | Flag | Effect |
 |---|---|
@@ -149,7 +215,9 @@ Put a `.mfgrc.json` in your home directory or the directory you run the generato
 
 Allowed keys are `preset`, `pm`, and the feature flags (`mongo`, `postgres`, `limiter`, `auth`, `rxjs`, `docker`, `test`, `zod`, `openapi`, `ci`, `git`, `agents`) as `true` / `false`. `git: false` means `--no-git` and `agents: false` means `--no-agents`. Order of precedence: preset, then the file, then command-line flags. Unknown keys are an error that names the file; pass `--no-config` to ignore it.
 
-## What you get
+---
+
+## 🚀 What you get
 
 ### Scripts
 
@@ -201,6 +269,8 @@ curl -s -X POST http://localhost:3000/api/v1/auth \
   -d '{"email":"ada@example.com","password":"password123"}'
 ```
 
+With `--refresh-tokens` the access token lives 15 minutes and login also returns a `refreshToken`: `POST /api/v1/auth/refresh` rotates it (each token works once; replaying a spent one revokes the session) and `POST /api/v1/auth/logout` ends the session. With `--roles`, `DELETE /api/v1/user/:id` and `PATCH /api/v1/user/:id/role` are admin-only and `npm run db:seed` adds `admin@example.com`.
+
 ### Configuration
 
 `.env` is generated (and git-ignored); `.env.example` documents the same variables and is safe to commit.
@@ -240,7 +310,9 @@ npm run dev
 
 With `--docker`, `docker compose up --build` runs the whole stack: the database, the migrations (PostgreSQL) and the app, in order. `docker run --env-file .env -p 3000:3000 <image>` runs just the app image. With `--ci` the workflow starts the same database as a service container so the tests can import the app.
 
-## Migrating
+---
+
+## 🔄 Migrating
 
 **From 1.x**
 
@@ -256,7 +328,9 @@ With `--docker`, `docker compose up --build` runs the whole stack: the database,
 
 See [CHANGELOG.md](CHANGELOG.md) for the full list.
 
-## Development
+---
+
+## 🛠️ Development
 
 ```bash
 npm test                # fast checks (generates into temp directories, no install)
@@ -273,6 +347,8 @@ Dependency versions of generated apps are pinned in `lib/generate.js`. A weekly 
 2. Merge to `main`, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
 3. The `release` workflow checks the tag matches `package.json`, runs `FULL=1 npm test`, and publishes with provenance. It needs an `NPM_TOKEN` repository secret (a granular token with publish rights on the package and 2FA bypass).
 
-## License
+---
+
+## 📄 License
 
 MIT
