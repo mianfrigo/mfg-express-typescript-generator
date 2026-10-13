@@ -1549,7 +1549,7 @@ test('trust files: security policy, contributing guide, issue and PR templates',
 test('README hero: CI badge, one-line pitch and an honest "which one" section', () => {
   const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
   assert.ok(readme.includes('actions/workflows/test.yml/badge.svg'), 'CI badge');
-  assert.ok(readme.includes('## Which generator should you use?'));
+  assert.match(readme, /^## \S+ Which generator should you use\?\r?$/m);
   assert.ok(readme.includes('express-generator-typescript'), 'names the lean alternative');
   assert.ok(readme.includes('### What you get, for real'), 'shows a real generated tree');
   assert.ok(readme.includes('src/validation/user.validation.ts'), 'tree comes from a real run');
