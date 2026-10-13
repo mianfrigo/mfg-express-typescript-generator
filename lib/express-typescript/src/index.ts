@@ -1,8 +1,8 @@
-import 'dotenv/config';
 import app from './app';
+import { env } from './config/env';
 import logger from './config/logger.config';
 
-const port = process.env.PORT || 3000;
+const port = env.port;
 
 // Express 5 hands a bind error (EADDRINUSE, EACCES) to this callback. Without
 // the check the app would log "connected" and idle without listening.

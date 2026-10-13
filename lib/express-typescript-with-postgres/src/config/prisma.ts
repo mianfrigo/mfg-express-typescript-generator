@@ -1,15 +1,10 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client';
+import { env } from './env';
 import logger from './logger.config';
 
-// Checked at boot (this module loads with the controllers).
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error('DATABASE_URL is not set. Add it to your .env file.');
-}
-
 export const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString }),
+  adapter: new PrismaPg({ connectionString: env.databaseUrl }),
 });
 
 export async function connectDb() {

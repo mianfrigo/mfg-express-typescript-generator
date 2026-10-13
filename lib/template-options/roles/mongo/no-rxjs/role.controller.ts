@@ -1,15 +1,14 @@
 import { Request, Response } from 'express';
 import createHttpError from 'http-errors';
+import { isRole, ROLES } from '../config/roles';
 import UserModel from '../models/user.schema';
-
-const ROLES = ['user', 'admin'];
 
 // Admin-only (see role.route.ts): promote or demote a user.
 export default class RoleController {
   setRole = async (req: Request, res: Response) => {
     const { role } = req.body ?? {};
-    if (!ROLES.includes(role)) {
-      throw new createHttpError.BadRequest('role must be "user" or "admin"');
+    if (!isRole(role)) {
+      throw new createHttpError.BadRequest(`role must be one of: ${ROLES.join(', ')}`);
     }
     const user = await UserModel.findByIdAndUpdate(
       req.params.id,

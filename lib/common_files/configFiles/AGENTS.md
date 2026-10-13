@@ -22,10 +22,11 @@ Before you finish a change, run `npm run lint` and `npm run build`.
 - `src/routes/index.ts` — mounts the routers; `src/routes/user.route.ts` is the example resource.
 #{{auth}} - `src/routes/auth.route.ts` and `src/controllers/auth.controller.ts` — register and login (JWT); `src/middleware/auth.ts` exports `requireAuth`.
 #{{refresh}} - `src/services/tokens.ts` — refresh tokens: `issueRefreshToken` (login), `refreshSession` (rotation, reuse detection) and `revokeSession` (logout); `src/controllers/token.controller.ts` serves `POST /auth/refresh` and `POST /auth/logout`.
-#{{roles}} - `src/middleware/auth.ts` also exports `requireRole(...roles)` (use it after `requireAuth`; it reads `req.auth.role`); `src/routes/role.route.ts` and `src/controllers/role.controller.ts` implement `PATCH /user/:id/role` (admin-only).
+#{{roles}} - `src/config/roles.ts` is the one list of roles (`ROLES`, `Role`, `isRole`). `src/middleware/auth.ts` also exports `requireRole(...roles)` (use it after `requireAuth`; it reads `req.auth.role`); `src/routes/role.route.ts` and `src/controllers/role.controller.ts` implement `PATCH /user/:id/role` (admin-only).
 - `src/controllers/user.controller.ts` — handlers for the example resource.
 - `src/middleware/errorHandler.ts` — `notFound` and `handleError`; maps database errors to HTTP statuses.
 #{{limiter}} - `src/middleware/limiters.ts` — `mainLimiter` (express-rate-limit), applied per route.
+- `src/config/env.ts` — the only reader of `process.env`: every variable is validated once at startup. Add new variables there, in `.env.example` and in the README.
 - `src/config/config.ts` — CORS allow-list (`CORS_ORIGINS`) and request logging; `src/config/logger.config.ts` — the logger.
 - `src/utils/pagination.ts` — `parsePaging` and `pageOf` for list endpoints.
 #{{mongo}} - `src/models/user.schema.ts` — mongoose model; `src/config/mongodb.config.ts` — connection.
@@ -42,7 +43,7 @@ Before you finish a change, run `npm run lint` and `npm run build`.
 - Handlers are class members written as arrow functions (they keep `this` when passed to a router).
 #{{!rxjs}} - Express 5 forwards rejected promises to the error handler: throw `createHttpError.NotFound()` and friends, no try/catch needed.
 #{{rxjs}} - Controllers use rxjs: end a pipeline with `.subscribe({ next, error: next })` so errors reach the error handler.
-- Never return a password hash; never log secrets. Configuration comes from environment variables: document a new one in `.env.example` and the README.
+- Never return a password hash; never log secrets. Configuration comes from environment variables read in `src/config/env.ts` (import `env`, never `process.env`): document a new one in `.env.example` and the README.
 #{{mongo}} - `MONGO_DB` is the MongoDB connection string.
 #{{postgres}} - `DATABASE_URL` is the PostgreSQL connection string.
 #{{auth}} - `SECRET_KEY` signs the JWTs; it is generated into `.env` and must be a long random value in production.

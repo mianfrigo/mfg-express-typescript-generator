@@ -121,7 +121,7 @@ test/                 vitest + supertest (--test)
 This is the real file list from a run of `--postgres --auth --zod --openapi --test --ci --docker` (plus `.env` and `.gitignore`, without `node_modules`):
 
 <details>
-<summary>Show all 34 files</summary>
+<summary>Show all 35 files</summary>
 
 ```text
 .dockerignore
@@ -141,6 +141,7 @@ prisma/schema.prisma
 scripts/seed.ts
 src/app.ts
 src/config/config.ts
+src/config/env.ts
 src/config/logger.config.ts
 src/config/prisma.ts
 src/controllers/auth.controller.ts

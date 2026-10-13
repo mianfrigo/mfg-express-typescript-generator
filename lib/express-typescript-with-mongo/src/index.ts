@@ -1,9 +1,9 @@
-import 'dotenv/config';
 import app from './app';
+import { env } from './config/env';
 import logger from './config/logger.config';
 import connectMongo, { disconnectMongo } from './config/mongodb.config';
 
-const port = process.env.PORT || 3000;
+const port = env.port;
 
 connectMongo()
   .then(() => {

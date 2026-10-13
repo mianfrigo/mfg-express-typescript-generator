@@ -2,9 +2,9 @@ import bcrypt from 'bcryptjs';
 import { NextFunction, Request, Response } from 'express';
 import createHttpError from 'http-errors';
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env';
 import { from, map, switchMap } from 'rxjs';
 import { prisma } from '../config/prisma';
-
 //{{refresh}} import { ACCESS_TTL, issueRefreshToken } from '../services/tokens';
 //{{!refresh}} const ACCESS_TTL = '24h';
 
@@ -53,11 +53,6 @@ export default class AuthController {
       next(new createHttpError.BadRequest('email and password are required'));
       return;
     }
-    const secret = process.env.SECRET_KEY;
-    if (!secret) {
-      next(new Error('SECRET_KEY is not set'));
-      return;
-    }
 
     from(prisma.user.findUnique({ where: { email } }))
       .pipe(
@@ -75,12 +70,12 @@ export default class AuthController {
         map((user) => {
 //{{!roles}}           const token = jwt.sign(
 //{{!roles}}             { auth_id: user.id, email: user.email },
-//{{!roles}}             secret,
+//{{!roles}}             env.secretKey,
 //{{!roles}}             { expiresIn: ACCESS_TTL }
 //{{!roles}}           );
 //{{roles}}           const token = jwt.sign(
 //{{roles}}             { auth_id: user.id, email: user.email, role: user.role },
-//{{roles}}             secret,
+//{{roles}}             env.secretKey,
 //{{roles}}             { expiresIn: ACCESS_TTL }
 //{{roles}}           );
           const { exp } = jwt.decode(token) as { exp: number };

@@ -1,4 +1,5 @@
 import { model, Schema } from 'mongoose';
+//{{roles}} import { ROLES } from '../config/roles';
 
 const UserSchema = new Schema(
   {
@@ -6,7 +7,7 @@ const UserSchema = new Schema(
     lastName: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, select: false },
-//{{roles}}     role: { type: String, enum: ['user', 'admin'], default: 'user' },
+//{{roles}}     role: { type: String, enum: ROLES, default: 'user' },
   },
   { timestamps: true }
 );

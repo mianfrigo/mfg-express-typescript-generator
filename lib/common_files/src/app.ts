@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 //{{openapi}} import swaggerUi from 'swagger-ui-express';
 import { corsOptionsWhiteList, morganConfig } from './config/config';
+import { env } from './config/env';
 import { handleError, notFound } from './middleware/errorHandler';
 //{{openapi}} import { openapiDocument } from './openapi';
 import baseRoutes from './routes';
@@ -14,8 +15,7 @@ const app = express();
 
 // Behind a load balancer, TRUST_PROXY=<hops> makes req.ip (and the rate
 // limiter) use the client address instead of the proxy's.
-const proxyHops = Number(process.env.TRUST_PROXY);
-if (proxyHops > 0) app.set('trust proxy', proxyHops);
+if (env.trustProxy > 0) app.set('trust proxy', env.trustProxy);
 
 // Basic middlewares
 app.use(morgan(morganConfig));

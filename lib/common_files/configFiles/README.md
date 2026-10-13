@@ -27,7 +27,7 @@ All under `/api/v1`.
 
 ## Configuration
 
-Copy `.env.example` to `.env` (`.env` is never committed).
+Copy `.env.example` to `.env` (`.env` is never committed). The variables are read and checked once, at startup, in `src/config/env.ts`; a bad value stops the app with one message that lists every problem.
 
 | Variable | Purpose |
 |---|---|
