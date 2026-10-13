@@ -4,6 +4,9 @@ import createHttpError from 'http-errors';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma';
 
+//{{refresh}} import { ACCESS_TTL, issueRefreshToken } from '../services/tokens';
+//{{!refresh}} const ACCESS_TTL = '24h';
+
 // compared when the user does not exist, so both failures cost one bcrypt round
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
 
@@ -50,19 +53,21 @@ export default class AuthController {
     }
 
 //{{!roles}}     const token = jwt.sign({ auth_id: user.id, email: user.email }, secret, {
-//{{!roles}}       expiresIn: '24h',
+//{{!roles}}       expiresIn: ACCESS_TTL,
 //{{!roles}}     });
 //{{roles}}     const token = jwt.sign(
 //{{roles}}       { auth_id: user.id, email: user.email, role: user.role },
 //{{roles}}       secret,
-//{{roles}}       { expiresIn: '24h' }
+//{{roles}}       { expiresIn: ACCESS_TTL }
 //{{roles}}     );
     const { exp } = jwt.decode(token) as { exp: number };
+//{{refresh}}     const refresh = await issueRefreshToken(String(user.id));
     const { password: _hash, ...authUser } = user;
     res.status(200).json({
       authToken: token,
       authToken_exp: exp,
       auth_user: authUser,
+//{{refresh}}       ...refresh,
     });
   };
 }

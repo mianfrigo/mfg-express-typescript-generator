@@ -453,6 +453,53 @@ async function checkDbCrud(dir, flags, adminUrl) {
       assert.equal((await call('DELETE', `/user/${vid}`, undefined, again.authToken)).status, 200);
     }
 
+    if (flags.includes('--refresh-tokens')) {
+      const decode = (t) => JSON.parse(Buffer.from(t.split('.')[1], 'base64url').toString());
+      const login = await call('POST', '/auth', { email: 'ada@example.com', password: 'password123' });
+      assert.equal(login.status, 200);
+      assert.equal(typeof login.body.refreshToken, 'string');
+      assert.ok(login.body.refreshToken_exp > Date.now() / 1000, 'exp is epoch seconds in the future');
+      const ttl = decode(login.body.authToken).exp - decode(login.body.authToken).iat;
+      assert.equal(ttl, 15 * 60, 'access token is short lived');
+
+      const rotated = await call('POST', '/auth/refresh', { refreshToken: login.body.refreshToken });
+      assert.equal(rotated.status, 200);
+      assert.notEqual(rotated.body.refreshToken, login.body.refreshToken, 'refresh token rotates');
+      assert.equal((await call('GET', '/user', undefined, rotated.body.authToken)).status, 200);
+      if (flags.includes('--roles')) assert.equal(decode(rotated.body.authToken).role, 'user');
+
+      // replaying the spent token is theft: it fails and kills the whole family
+      assert.equal((await call('POST', '/auth/refresh', { refreshToken: login.body.refreshToken })).status, 401);
+      assert.equal((await call('POST', '/auth/refresh', { refreshToken: rotated.body.refreshToken })).status, 401);
+
+      assert.equal((await call('POST', '/auth/refresh', { refreshToken: 'garbage' })).status, 401);
+      assert.equal((await call('POST', '/auth/refresh', {})).status, 400);
+
+      // logout ends the session and is idempotent
+      const again = await call('POST', '/auth', { email: 'ada@example.com', password: 'password123' });
+      const out = await fetch(base + '/auth/logout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ refreshToken: again.body.refreshToken }),
+      });
+      assert.equal(out.status, 204);
+      assert.equal((await call('POST', '/auth/refresh', { refreshToken: again.body.refreshToken })).status, 401);
+      const out2 = await fetch(base + '/auth/logout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ refreshToken: again.body.refreshToken }),
+      });
+      assert.equal(out2.status, 204, 'logout twice is fine');
+
+      // a refreshed token carries the current role
+      if (flags.includes('--roles')) {
+        const admin = await call('POST', '/auth', { email: 'admin@example.com', password: 'password123' });
+        const r = await call('POST', '/auth/refresh', { refreshToken: admin.body.refreshToken });
+        assert.equal(r.status, 200);
+        assert.equal(decode(r.body.authToken).role, 'admin');
+      }
+    }
+
     if (process.platform !== 'win32') {
       child.kill('SIGTERM');
       assert.equal(await exited, 0, 'graceful exit disconnects prisma');
@@ -645,6 +692,10 @@ const MATRIX = {
   'full-postgres-roles': ['--postgres', '--auth', '--roles', '--zod', '--openapi', '--test'],
   'full-postgres-roles-rxjs': ['--postgres', '--auth', '--roles', '--rxjs'],
   'full-mongo-roles-rxjs': ['--mongo', '--auth', '--roles', '--rxjs', '--limiter'],
+  'full-mongo-refresh': ['--mongo', '--auth', '--refresh-tokens', '--zod', '--openapi', '--test'],
+  'full-postgres-refresh': ['--postgres', '--auth', '--refresh-tokens', '--zod', '--openapi'],
+  'full-postgres-refresh-roles-rxjs': ['--postgres', '--auth', '--roles', '--refresh-tokens', '--rxjs', '--limiter'],
+  'full-mongo-refresh-roles-rxjs': ['--mongo', '--auth', '--roles', '--refresh-tokens', '--rxjs'],
   'full-zod': ['--zod'],
   'full-openapi': ['--zod', '--openapi'],
   'full-openapi-auth': ['--zod', '--openapi', '--mongo', '--auth'],
@@ -1850,4 +1901,66 @@ test('plain --auth output has no roles artifacts', () => {
 test('README documents --roles and AGENTS.md follows the flag', () => {
   const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
   assert.ok(readme.includes('--roles') && readme.includes('requireRole'));
+});
+
+test('--refresh-tokens needs --auth (exit 1 otherwise)', () => {
+  const { r } = gen('refresh-noauth', ['--yes', '--no-install', '--mongo', '--refresh-tokens']);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /--refresh-tokens requires --auth/);
+});
+
+test('--refresh-tokens (mongo): token model, service, routes, short access token, docs', () => {
+  const { dir, r } = gen('refresh-mongo', [
+    '--yes', '--no-install', '--mongo', '--auth', '--refresh-tokens', '--zod', '--openapi', '--limiter',
+  ]);
+  assert.equal(r.status, 0, r.stderr);
+  const model = read(dir, 'src/models/refreshToken.schema.ts');
+  assert.ok(model.includes('tokenHash') && model.includes('familyId') && model.includes('expires'));
+  const svc = read(dir, 'src/services/tokens.ts');
+  assert.ok(svc.includes('sha256') && svc.includes('ACCESS_TOKEN_TTL') && svc.includes('REFRESH_TOKEN_TTL_DAYS'));
+  const route = read(dir, 'src/routes/auth.route.ts');
+  assert.ok(route.includes("'/refresh'") && route.includes("'/logout'"));
+  assert.ok(read(dir, 'src/validation/auth.validation.ts').includes('refreshSchema'));
+  assert.ok(read(dir, 'src/controllers/token.controller.ts').includes('refreshSession'));
+  const auth = read(dir, 'src/controllers/auth.controller.ts');
+  assert.ok(auth.includes('issueRefreshToken') && auth.includes('ACCESS_TTL') && !auth.includes("'24h'"));
+  assert.ok(read(dir, 'src/openapi.ts').includes("'/auth/refresh'"));
+  assert.match(read(dir, 'README.md'), /## Refresh tokens/);
+  assert.ok(read(dir, 'AGENTS.md').includes('src/services/tokens.ts'));
+  assert.ok(!allTs(dir).includes('{{'));
+});
+
+test('--refresh-tokens (postgres): RefreshToken model and committed migration', () => {
+  const { dir, r } = gen('refresh-pg', [
+    '--yes', '--no-install', '--postgres', '--auth', '--roles', '--refresh-tokens', '--rxjs',
+  ]);
+  assert.equal(r.status, 0, r.stderr);
+  const schema = read(dir, 'prisma/schema.prisma');
+  assert.ok(schema.includes('model RefreshToken') && schema.includes('refreshTokens RefreshToken[]'));
+  const mig = readdirSync(path.join(dir, 'prisma/migrations')).find((m) => m.endsWith('_init'));
+  const sql = read(dir, `prisma/migrations/${mig}/migration.sql`);
+  assert.ok(sql.includes('CREATE TABLE "RefreshToken"') && sql.includes('ON DELETE CASCADE'));
+  assert.ok(read(dir, 'src/services/tokens.ts').includes('prisma.refreshToken'));
+  assert.ok(read(dir, 'src/controllers/token.controller.ts').includes('rxjs'));
+  assert.ok(!allTs(dir).includes('{{'));
+  assert.ok(!schema.includes('{{') && !sql.includes('{{'));
+});
+
+test('plain --auth output has no refresh-token artifacts', () => {
+  for (const [name, flags] of [['norefresh-mongo', ['--mongo']], ['norefresh-pg', ['--postgres']]]) {
+    const { dir, r } = gen(name, ['--yes', '--no-install', '--auth', ...flags]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(!has(dir, 'src/services/tokens.ts') && !has(dir, 'src/controllers/token.controller.ts'));
+    const text = allTs(dir) + read(dir, 'README.md') + read(dir, 'AGENTS.md');
+    assert.ok(!/refresh/i.test(text), `${name}: no refresh text`);
+    if (has(dir, 'prisma/schema.prisma')) {
+      assert.ok(!/RefreshToken/.test(read(dir, 'prisma/schema.prisma')));
+    }
+    assert.ok(read(dir, 'src/controllers/auth.controller.ts').includes("'24h'"));
+  }
+});
+
+test('README documents --refresh-tokens', () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  assert.ok(readme.includes('--refresh-tokens') && readme.includes('/auth/refresh'));
 });

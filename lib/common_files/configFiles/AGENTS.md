@@ -21,6 +21,7 @@ Before you finish a change, run `npm run lint` and `npm run build`.
 - `src/app.ts` — the Express app only (middleware, `/api/v1` routes, error handlers). Import this in tests.
 - `src/routes/index.ts` — mounts the routers; `src/routes/user.route.ts` is the example resource.
 #{{auth}} - `src/routes/auth.route.ts` and `src/controllers/auth.controller.ts` — register and login (JWT); `src/middleware/auth.ts` exports `requireAuth`.
+#{{refresh}} - `src/services/tokens.ts` — refresh tokens: `issueRefreshToken` (login), `refreshSession` (rotation, reuse detection) and `revokeSession` (logout); `src/controllers/token.controller.ts` serves `POST /auth/refresh` and `POST /auth/logout`.
 #{{roles}} - `src/middleware/auth.ts` also exports `requireRole(...roles)` (use it after `requireAuth`; it reads `req.auth.role`); `src/routes/role.route.ts` and `src/controllers/role.controller.ts` implement `PATCH /user/:id/role` (admin-only).
 - `src/controllers/user.controller.ts` — handlers for the example resource.
 - `src/middleware/errorHandler.ts` — `notFound` and `handleError`; maps database errors to HTTP statuses.
@@ -49,6 +50,7 @@ Before you finish a change, run `npm run lint` and `npm run build`.
 - List endpoints return `{ data, meta }` through `parsePaging` / `pageOf`.
 #{{zod}} - Validate every request body with `validate(schema)` in the route file; add the schema under `src/validation/`.
 #{{auth}} - Protected routes go behind `requireAuth`; keep `/auth`, `/health` and `/ready` public.
+#{{refresh}} - Only a hash of a refresh token is stored; never log or return one except in the login and refresh responses. `ACCESS_TOKEN_TTL` and `REFRESH_TOKEN_TTL_DAYS` set the lifetimes.
 #{{roles}} - Admin-only actions add `requireRole('admin')` after `requireAuth`. Never let a request body set `role`: it is deliberately not in the `pick` whitelist.
 
 ## Adding a resource

@@ -22,6 +22,7 @@ All under `/api/v1`.
 - `GET /user`, `GET /user/:id`, `POST /user`, `PUT /user/:id`, `DELETE /user/:id`
 - `GET /user?page=1&limit=20` returns `{ data, meta }` where `meta` is `{ page, limit, total, totalPages }`; `limit` defaults to 20 and is capped at 100.
 #{{auth}} - `POST /auth/register` and `POST /auth` — register and log in (JWT). The `/user` routes need `Authorization: Bearer <token>`.
+#{{refresh}} - `POST /auth/refresh` and `POST /auth/logout` — rotate a refresh token for a new token pair, end a session.
 #{{openapi}} - `GET /docs` (Swagger UI) and `GET /openapi.json`.
 
 ## Configuration
@@ -34,6 +35,8 @@ Copy `.env.example` to `.env` (`.env` is never committed).
 #{{mongo}} | `MONGO_DB` | MongoDB connection string |
 #{{postgres}} | `DATABASE_URL` | PostgreSQL connection string |
 #{{auth}} | `SECRET_KEY` | JWT signing secret; use a long random value |
+#{{refresh}} | `ACCESS_TOKEN_TTL` | Access token lifetime, jsonwebtoken format (default `15m`) |
+#{{refresh}} | `REFRESH_TOKEN_TTL_DAYS` | Refresh token lifetime in days (default `30`) |
 | `CORS_ORIGINS` | Comma-separated browser origins allowed by CORS |
 | `TRUST_PROXY` | Number of reverse-proxy hops to trust (set it behind a load balancer) |
 | `LOG_LEVEL` | `debug`, `info`, `warn` or `error` (default `info`) |
@@ -62,7 +65,8 @@ Logs go to stdout: JSON when `NODE_ENV=production`, readable text otherwise.
 #{{auth}} `/api/v1/user` needs an `Authorization: Bearer <token>` header. `/api/v1/auth/register`, `/api/v1/auth`, `/api/v1/health` and `/api/v1/ready` are public.
 
 #{{auth}} 1. **Get a user.** Run `npm run db:seed` and use a seeded user: `ada@example.com`, `grace@example.com` or `alan@example.com`, all with the password `password123` (development only, never use it in production). Or register your own with `POST /api/v1/auth/register` and `firstName`, `lastName`, `email` and a `password` of at least 8 characters.
-#{{auth}} 2. **Log in** with `POST /api/v1/auth` and `{ "email", "password" }`. The response contains `authToken`, valid for 24 hours.
+#{{!refresh}} 2. **Log in** with `POST /api/v1/auth` and `{ "email", "password" }`. The response contains `authToken`, valid for 24 hours.
+#{{refresh}} 2. **Log in** with `POST /api/v1/auth` and `{ "email", "password" }`. The response contains `authToken` (valid for 15 minutes) and a `refreshToken` (see Refresh tokens below).
 #{{auth}} 3. **Send it** on every request as `Authorization: Bearer <authToken>`.
 
 #{{auth}} ```bash
@@ -81,6 +85,15 @@ Logs go to stdout: JSON when `NODE_ENV=production`, readable text otherwise.
 #{{roles}} - Protect your own routes with `requireRole('admin')` after `requireAuth` (see `src/middleware/auth.ts`).
 
 #{{roles}} A role is read from the token, so a promotion applies on the next login (or token refresh).
+
+#{{refresh}} ## Refresh tokens
+
+#{{refresh}} The access token is short-lived. Keep the `refreshToken` from login somewhere safe and use it to get a new pair without asking for the password again.
+
+#{{refresh}} - `POST /api/v1/auth/refresh` with `{ "refreshToken" }` returns a new `authToken` and a **new** `refreshToken`. Each refresh token works once.
+#{{refresh}} - Using a refresh token a second time revokes the whole session (it is how a stolen token is caught): log in again.
+#{{refresh}} - `POST /api/v1/auth/logout` with `{ "refreshToken" }` ends the session (always `204`).
+#{{refresh}} - Only a SHA-256 hash of each refresh token is stored. Lifetimes: `ACCESS_TOKEN_TTL` (default `15m`) and `REFRESH_TOKEN_TTL_DAYS` (default `30`).
 
 #{{ci}} ## CI
 #{{ci}} `.github/workflows/ci.yml` runs install, lint, build and tests on every push to `main` and on pull requests.
