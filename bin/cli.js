@@ -62,7 +62,7 @@ try {
 
   if (values['dry-run']) {
     const { files, pkg: preview } = await previewApp(dest, options);
-    const features = ['db', 'auth', 'rxjs', 'limiter', 'zod', 'openapi', 'test', 'ci', 'docker']
+    const features = ['db', 'auth', 'roles', 'refreshTokens', 'rxjs', 'limiter', 'zod', 'openapi', 'test', 'ci', 'docker']
       .filter((k) => options[k])
       .map((k) => (k === 'db' ? options.db : k));
     console.log(

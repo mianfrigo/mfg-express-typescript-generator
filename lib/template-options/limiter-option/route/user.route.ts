@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import UserController from '../controllers/user.controller';
-import { mainLimiter } from '../middleware/limiters';
+//{{limiter}} import { mainLimiter } from '../middleware/limiters';
 //{{roles}} import { requireRole } from '../middleware/auth';
 //{{zod}} import { validate } from '../middleware/validate';
 //{{zod}} import { createUserSchema } from '../validation/user.validation';

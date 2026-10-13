@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import AuthController from '../controllers/auth.controller';
-import { mainLimiter } from '../middleware/limiters';
+//{{limiter}} import { mainLimiter } from '../middleware/limiters';
 //{{zod}} import { validate } from '../middleware/validate';
 //{{zod}} import { loginSchema } from '../validation/auth.validation';
 //{{zod}} import { registerSchema } from '../validation/auth.validation';
