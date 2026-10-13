@@ -1,5 +1,35 @@
 # Changelog
 
+## [2.9.0] - 2026-10-13
+
+### Added
+- **`--roles`** (needs `--auth`). Users get a `role` (`user` or `admin`) in the
+  model, the migration and the access token. `requireRole('admin')` is exported
+  from the auth middleware and `req.auth` carries the caller. `DELETE /user/:id`
+  becomes admin-only, `PATCH /user/:id/role` promotes and demotes, and
+  `db:seed` adds `admin@example.com`. A role set through the normal write
+  routes is ignored.
+- **`--refresh-tokens`** (needs `--auth`). The access token lives 15 minutes
+  (`ACCESS_TOKEN_TTL`) and login also returns an opaque refresh token
+  (`REFRESH_TOKEN_TTL_DAYS`, default 30). `POST /auth/refresh` rotates it and
+  `POST /auth/logout` ends the session. Only a SHA-256 hash is stored (a
+  mongoose model with a TTL index, or a Prisma `RefreshToken` model and
+  migration). Replaying a spent token revokes the whole session, and a refresh
+  re-reads the user, so a role change applies.
+- **Wizard:** with Authentication selected it asks for roles and refresh tokens.
+  Both are also config-file keys (`roles`, `refresh-tokens`).
+- OpenAPI, the generated README and `AGENTS.md` follow both flags.
+
+### Changed
+- The README is restructured: features, installation, quick start, an
+  architecture tree and a collapsible file list.
+
+### Repo
+- SQL templates support `--{{flag}}` marker lines.
+- The FULL matrix checks that the committed Prisma migration equals what
+  `prisma migrate diff` generates from the schema, and runs role and
+  refresh-token scenarios against real PostgreSQL and MongoDB.
+
 ## [2.8.1] - 2026-10-12
 
 ### Added
