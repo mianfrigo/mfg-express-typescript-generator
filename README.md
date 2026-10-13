@@ -109,6 +109,7 @@ tsconfig.json
 | **Features** | |
 | `--auth` | `POST /api/v1/auth/register` and `POST /api/v1/auth` (JWT), and a `Bearer` token on `/api/v1/user`; needs a database; writes a random `SECRET_KEY` to `.env` |
 | `--roles` | `user` / `admin` roles on top of `--auth`: the role in the token, `requireRole('admin')`, admin-only `DELETE /user/:id`, `PATCH /user/:id/role`, a seeded `admin@example.com` (needs `--auth`) |
+| `--refresh-tokens` | Short-lived (15 min) access tokens plus rotating refresh tokens on top of `--auth`: `POST /auth/refresh` and `POST /auth/logout`, hashed tokens in the database, reuse detection that revokes the session (needs `--auth`) |
 | `--zod` | Validate request bodies with zod (`src/validation/`); invalid input is a 400 naming each field |
 | `--openapi` | Swagger UI at `/api/v1/docs` and the spec at `/api/v1/openapi.json`, generated from the zod schemas (needs `--zod`) |
 | `--limiter` | Rate limiting with `express-rate-limit` on the routes |

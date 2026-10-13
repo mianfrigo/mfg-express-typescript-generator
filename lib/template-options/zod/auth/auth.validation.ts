@@ -11,3 +11,7 @@ export const registerSchema = z.object({
   email: z.email(),
   password: z.string().min(8),
 });
+
+//{{refresh}} export const refreshSchema = z.object({
+//{{refresh}}   refreshToken: z.string().min(1),
+//{{refresh}} });

@@ -75,13 +75,27 @@ test('wizard custom without a database: auth and rxjs are disabled and say why; 
 });
 
 test('wizard custom with a database enables auth and rxjs; declining openapi leaves it off', async () => {
-  const p = fakePrompts(['custom', 'postgres', ['auth', 'zod', 'docker'], false, true]);
+  const p = fakePrompts(['custom', 'postgres', ['auth', 'zod', 'docker'], [], false, true]);
   const flags = await runWizard({ prompts: p, projectName: 'api' });
   assert.deepEqual(flags, { postgres: true, auth: true, zod: true, docker: true });
 
   const features = p.calls.find((c) => c.kind === 'multiselect').opts.options;
   assert.ok(!features.find((x) => x.value === 'auth').disabled);
   assert.ok(!features.find((x) => x.value === 'rxjs').disabled);
+});
+
+test('wizard custom: auth asks for roles and refresh tokens; no auth, no question', async () => {
+  const p = fakePrompts(['custom', 'mongo', ['auth'], ['roles', 'refresh-tokens'], true]);
+  const flags = await runWizard({ prompts: p, projectName: 'api' });
+  assert.deepEqual(flags, { mongo: true, auth: true, roles: true, 'refresh-tokens': true });
+  assert.match(p.calls.find((c) => c.kind === 'note').opts.message, /--mongo --auth --roles --refresh-tokens/);
+
+  const q = fakePrompts(['custom', 'mongo', ['limiter'], true]); // nothing extra scripted
+  assert.deepEqual(await runWizard({ prompts: q, projectName: 'api' }), { mongo: true, limiter: true });
+  assert.equal(
+    await runWizard({ prompts: fakePrompts(['custom', 'mongo', ['auth'], CANCEL]), projectName: 'x' }),
+    null
+  );
 });
 
 test('wizard custom without zod never asks about OpenAPI', async () => {

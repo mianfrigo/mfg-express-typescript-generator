@@ -2,6 +2,7 @@ import { z } from 'zod';
 //{{auth}} import { loginSchema, registerSchema } from './validation/auth.validation';
 import { createUserSchema } from './validation/user.validation';
 import { updateUserSchema } from './validation/user.validation';
+//{{refresh}} import { refreshSchema } from './validation/auth.validation';
 //{{roles}} import { roleSchema } from './validation/role.validation';
 
 // The spec is assembled from the same zod schemas the routes validate with, so
@@ -119,6 +120,25 @@ export const openapiDocument = {
 //{{auth}}         responses: { 200: { description: 'Token' }, 401: { description: 'Invalid credentials' } },
 //{{auth}}       },
 //{{auth}}     },
+//{{refresh}}     '/auth/refresh': {
+//{{refresh}}       post: {
+//{{refresh}}         summary: 'Exchange a refresh token for a new access token and refresh token',
+//{{refresh}}         security: [],
+//{{refresh}}         requestBody: body(refreshSchema),
+//{{refresh}}         responses: {
+//{{refresh}}           200: { description: 'New authToken and refreshToken' },
+//{{refresh}}           401: { description: 'Invalid, expired or already used refresh token' },
+//{{refresh}}         },
+//{{refresh}}       },
+//{{refresh}}     },
+//{{refresh}}     '/auth/logout': {
+//{{refresh}}       post: {
+//{{refresh}}         summary: 'End the session of a refresh token',
+//{{refresh}}         security: [],
+//{{refresh}}         requestBody: body(refreshSchema),
+//{{refresh}}         responses: { 204: { description: 'Logged out' } },
+//{{refresh}}       },
+//{{refresh}}     },
 //{{auth}}     '/auth/register': {
 //{{auth}}       post: {
 //{{auth}}         summary: 'Register a user',

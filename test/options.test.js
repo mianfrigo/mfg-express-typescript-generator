@@ -34,6 +34,7 @@ test('flags set every option without prompting', async () => {
     openapi: false,
     ci: false,
     roles: false,
+    refreshTokens: false,
     agents: true,
     docker: false,
     test: false,
@@ -41,6 +42,7 @@ test('flags set every option without prompting', async () => {
     openapi: false,
     ci: false,
     roles: false,
+    refreshTokens: false,
     agents: true,
     git: 'auto',
     here: false,
@@ -62,6 +64,7 @@ test('--yes never prompts and defaults every option to false', async () => {
     openapi: false,
     ci: false,
     roles: false,
+    refreshTokens: false,
     agents: true,
     git: 'auto',
     here: false,
@@ -335,4 +338,21 @@ test('--roles is flag-only, needs --auth, and is an allowed config key', async (
     /--roles requires --auth/
   );
   assert.doesNotThrow(() => parseCli(['--mongo', '--auth'], { config: { roles: true } }));
+});
+
+test('--refresh-tokens is flag-only, needs --auth, and is an allowed config key', async () => {
+  const ask = async (q) => {
+    assert.ok(!/refresh/i.test(q), 'no prompt for --refresh-tokens');
+    return false;
+  };
+  const ok = await resolveOptions(parseCli(['--mongo', '--auth', '--refresh-tokens'], {}).values, ask);
+  assert.equal(ok.refreshTokens, true);
+  assert.equal((await run(['--mongo', '--auth'], ask)).refreshTokens, false);
+  await assert.rejects(
+    resolveOptions(parseCli(['--mongo', '--refresh-tokens'], {}).values, ask),
+    /--refresh-tokens requires --auth/
+  );
+  assert.doesNotThrow(() =>
+    parseCli(['--mongo', '--auth'], { config: { 'refresh-tokens': true } })
+  );
 });

@@ -17,4 +17,18 @@ model User {
 //{{roles}}   role      String   @default("user")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+//{{refresh}}   refreshTokens RefreshToken[]
 }
+
+//{{refresh}} model RefreshToken {
+//{{refresh}}   id        String    @id @default(uuid())
+//{{refresh}}   tokenHash String    @unique
+//{{refresh}}   userId    String
+//{{refresh}}   familyId  String
+//{{refresh}}   expiresAt DateTime
+//{{refresh}}   revokedAt DateTime?
+//{{refresh}}   createdAt DateTime  @default(now())
+//{{refresh}}   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+//{{refresh}}   @@index([userId])
+//{{refresh}}   @@index([familyId])
+//{{refresh}} }
