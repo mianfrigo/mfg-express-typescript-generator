@@ -2,6 +2,7 @@ import { CorsOptions } from 'cors';
 import { Request } from 'express';
 import { IncomingMessage, ServerResponse } from 'node:http';
 import { TokenIndexer } from 'morgan';
+import { env } from './env';
 import logger from './logger.config';
 
 /* Cors Config  */
@@ -19,13 +20,8 @@ const corsOptions: CorsOptions = {
   preflightContinue: false,
 };
 
-// Comma-separated list in CORS_ORIGINS (see .env.example).
-const allowed = (
-  process.env.CORS_ORIGINS ?? 'http://localhost:3000,http://localhost:4200'
-)
-  .split(',')
-  .map((o) => o.trim())
-  .filter(Boolean);
+// Allow-list from CORS_ORIGINS (see config/env.ts).
+const allowed = env.corsOrigins;
 
 // Exact origin match. Requests without an Origin header (curl, server-to-server,
 // same-origin) are served; they just get no CORS headers.

@@ -22,6 +22,7 @@ jobs:
     env:
       CI: 'true'
 #{{postgres}}       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+#{{mongo}}       MONGO_DB: mongodb://localhost:27017/app
 #{{auth}}       SECRET_KEY: ci-only-secret-never-use-in-production-0123456789
     steps:
       - uses: actions/checkout@v4

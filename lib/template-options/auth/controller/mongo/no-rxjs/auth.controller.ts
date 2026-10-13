@@ -2,8 +2,8 @@ import bcrypt from 'bcryptjs';
 import { Request, Response } from 'express';
 import createHttpError from 'http-errors';
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env';
 import UserModel from '../models/user.schema';
-
 //{{refresh}} import { ACCESS_TTL, issueRefreshToken } from '../services/tokens';
 //{{!refresh}} const ACCESS_TTL = '24h';
 
@@ -40,8 +40,6 @@ export default class AuthController {
     if (typeof email !== 'string' || typeof password !== 'string') {
       throw new createHttpError.BadRequest('email and password are required');
     }
-    const secret = process.env.SECRET_KEY;
-    if (!secret) throw new Error('SECRET_KEY is not set');
 
     const user = await UserModel.findOne({ email }).select('+password');
     // always run one bcrypt compare so response time does not reveal valid emails
@@ -50,12 +48,12 @@ export default class AuthController {
       throw new createHttpError.Unauthorized('Invalid credentials');
     }
 
-//{{!roles}}     const token = jwt.sign({ auth_id: user._id, email: user.email }, secret, {
+//{{!roles}}     const token = jwt.sign({ auth_id: user._id, email: user.email }, env.secretKey, {
 //{{!roles}}       expiresIn: ACCESS_TTL,
 //{{!roles}}     });
 //{{roles}}     const token = jwt.sign(
 //{{roles}}       { auth_id: user._id, email: user.email, role: user.role },
-//{{roles}}       secret,
+//{{roles}}       env.secretKey,
 //{{roles}}       { expiresIn: ACCESS_TTL }
 //{{roles}}     );
     const { exp } = jwt.decode(token) as { exp: number };

@@ -182,6 +182,24 @@ function checkRequireAuth(dir) {
   assert.equal(r.stdout.trim(), '[401,401,"ok",401]');
 }
 
+// compiled app, bad environment: one message that lists every problem, exit 1
+function checkEnvFailFast(dir, flags) {
+  const bad = { PORT: 'abc', LOG_LEVEL: 'loud' };
+  if (flags.includes('--auth')) bad.SECRET_KEY = '';
+  const r = spawnSync(process.execPath, ['dist/index.js'], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: { ...process.env, ...bad },
+    timeout: 20_000,
+  });
+  assert.equal(r.status, 1, `exit code (stderr: ${r.stderr})`);
+  const out = r.stderr + r.stdout;
+  assert.match(out, /Invalid environment/);
+  assert.match(out, /PORT must be/);
+  assert.match(out, /LOG_LEVEL must be/);
+  if (flags.includes('--auth')) assert.match(out, /SECRET_KEY is not set/);
+}
+
 // compiled validate middleware + schemas, no MongoDB needed
 function checkValidate(dir, flags) {
   const mongo = flags.includes('--mongo') || flags.includes('--postgres'); // camelCase db schemas
@@ -774,13 +792,14 @@ for (const [name, flags] of Object.entries(MATRIX)) {
       if (process.env.MONGO_URL && flags.includes('--mongo')) {
         await checkDbCrud(dir, flags, process.env.MONGO_URL);
       }
-      // last: it deletes .env
-      if (flags.includes('--ci') && flags.includes('--test')) checkCiEnv(dir);
       if (flags.includes('--auth')) checkRequireAuth(dir);
+      checkEnvFailFast(dir, flags);
       if (name === 'full-base' || name === 'full-openapi') {
         await checkHealthAndShutdown(dir, flags.includes('--openapi'));
       }
       if (name === 'full-base') await checkPortInUse(dir);
+      // last: it deletes .env
+      if (flags.includes('--ci') && flags.includes('--test')) checkCiEnv(dir);
     }
   );
 }
@@ -882,7 +901,8 @@ test('index handles SIGTERM/SIGINT; mongo app disconnects on shutdown', () => {
 test('auth middleware fails at boot without SECRET_KEY', () => {
   const { dir } = gen('boot-secret', ['--yes', '--no-install', '--mongo', '--auth']);
   const m = read(dir, 'src/middleware/auth.ts');
-  assert.ok(m.includes('SECRET_KEY is not set'));
+  assert.ok(read(dir, 'src/config/env.ts').includes('is not set'));
+  assert.ok(m.includes('env.secretKey') && !m.includes('process.env'));
   assert.ok(m.includes("algorithms: ['HS256']"));
 });
 
@@ -1154,15 +1174,19 @@ test('production defaults: CORS_ORIGINS, stdout logging, TRUST_PROXY, quiet morg
   const { dir, r } = gen('prod', ['--yes', '--no-install', '--docker']);
   assert.equal(r.status, 0, r.stderr);
   const cfg = read(dir, 'src/config/config.ts');
-  assert.ok(cfg.includes('process.env.CORS_ORIGINS'));
+  assert.ok(cfg.includes('env.corsOrigins'));
+  assert.ok(read(dir, 'src/config/env.ts').includes('CORS_ORIGINS'));
   assert.ok(cfg.includes('allowed.includes(origin)'));
   assert.ok(cfg.includes('return null;'), 'morgan output is suppressed (logger prints once)');
   const log = read(dir, 'src/config/logger.config.ts');
   assert.ok(log.includes('new transports.Console()'));
   assert.ok(!log.includes('transports.File') && !log.includes('./logs/'));
-  assert.ok(log.includes('LOG_LEVEL') && log.includes("NODE_ENV === 'production'"));
+  assert.ok(log.includes('env.logLevel') && log.includes('env.production'));
+  const envTs = read(dir, 'src/config/env.ts');
+  assert.ok(envTs.includes("'LOG_LEVEL'") && envTs.includes("'NODE_ENV'") === false);
   const app = read(dir, 'src/app.ts');
-  assert.ok(app.includes('TRUST_PROXY') && app.includes("'trust proxy'"));
+  assert.ok(app.includes('env.trustProxy') && app.includes("'trust proxy'"));
+  assert.ok(envTs.includes('TRUST_PROXY'));
   assert.ok(!read(dir, 'Dockerfile').includes('chown'), 'no log-dir workaround needed');
   assert.match(read(dir, '.env'), /^CORS_ORIGINS=/m);
 });
@@ -1870,7 +1894,7 @@ test('--roles (mongo): role field, requireRole, admin-only delete, role route, s
     '--yes', '--no-install', '--mongo', '--auth', '--roles', '--zod', '--openapi', '--limiter',
   ]);
   assert.equal(r.status, 0, r.stderr);
-  assert.ok(read(dir, 'src/models/user.schema.ts').includes("enum: ['user', 'admin']"));
+  assert.ok(read(dir, 'src/models/user.schema.ts').includes('enum: ROLES'));
   const mw = read(dir, 'src/middleware/auth.ts');
   assert.ok(mw.includes('requireRole') && mw.includes('req.auth'));
   const users = read(dir, 'src/routes/user.route.ts');
@@ -1879,7 +1903,7 @@ test('--roles (mongo): role field, requireRole, admin-only delete, role route, s
   const roleRoute = read(dir, 'src/routes/role.route.ts');
   assert.ok(roleRoute.includes("'/:id/role'") && roleRoute.includes("requireRole('admin')"));
   assert.ok(roleRoute.includes('validate(roleSchema)'));
-  assert.ok(read(dir, 'src/validation/role.validation.ts').includes("z.enum(['user', 'admin'])"));
+  assert.ok(read(dir, 'src/validation/role.validation.ts').includes('z.enum(ROLES)'));
   assert.ok(read(dir, 'src/routes/index.ts').includes("router.use('/user', requireAuth, roleRoute)"));
   assert.ok(read(dir, 'src/controllers/role.controller.ts').includes('setRole'));
   assert.ok(read(dir, 'src/controllers/auth.controller.ts').includes('role: user.role'));
@@ -1936,7 +1960,7 @@ test('--refresh-tokens (mongo): token model, service, routes, short access token
   const model = read(dir, 'src/models/refreshToken.schema.ts');
   assert.ok(model.includes('tokenHash') && model.includes('familyId') && model.includes('expires'));
   const svc = read(dir, 'src/services/tokens.ts');
-  assert.ok(svc.includes('sha256') && svc.includes('ACCESS_TOKEN_TTL') && svc.includes('REFRESH_TOKEN_TTL_DAYS'));
+  assert.ok(svc.includes('sha256') && read(dir, 'src/config/env.ts').includes('REFRESH_TOKEN_TTL_DAYS') && svc.includes('env.accessTokenTtl'));
   const route = read(dir, 'src/routes/auth.route.ts');
   assert.ok(route.includes("'/refresh'") && route.includes("'/logout'"));
   assert.ok(read(dir, 'src/validation/auth.validation.ts').includes('refreshSchema'));
@@ -2033,4 +2057,66 @@ test('error handler: 4xx at warn without a stack, 5xx at error, headersSent resp
     assert.ok(!read(dir, 'src/app.ts').includes('urlencoded'), name);
     assert.ok(!read(dir, 'src/index.ts').includes('console.error(`could not listen'), name);
   }
+});
+
+test('env: process.env is read only in src/config/env.ts (every database and feature)', () => {
+  for (const [name, flags] of [
+    ['env-base', []],
+    ['env-mongo', ['--mongo', '--auth', '--roles', '--refresh-tokens', '--zod', '--limiter', '--test']],
+    ['env-pg', ['--postgres', '--auth', '--roles', '--refresh-tokens', '--rxjs', '--openapi', '--zod']],
+  ]) {
+    const { dir, r } = gen(name, ['--yes', '--no-install', ...flags]);
+    assert.equal(r.status, 0, r.stderr);
+    for (const rel of readdirSync(path.join(dir, 'src'), { recursive: true })) {
+      const p = String(rel).split(path.sep).join('/');
+      if (!p.endsWith('.ts') || p === 'config/env.ts' || p.startsWith('generated/')) continue;
+      assert.ok(!read(dir, 'src/' + p).includes('process.env'), `${name}: src/${p} reads process.env`);
+    }
+    const env = read(dir, 'src/config/env.ts');
+    assert.ok(env.includes("import 'dotenv/config'") && env.includes('Invalid environment'));
+    assert.equal(env.includes('secretKey'), flags.includes('--auth'), name);
+    assert.equal(env.includes('mongoUrl'), flags.includes('--mongo'), name);
+    assert.equal(env.includes('databaseUrl'), flags.includes('--postgres'), name);
+    assert.equal(env.includes('refreshTokenDays'), flags.includes('--refresh-tokens'), name);
+    assert.ok(!env.includes('{{'));
+    for (const rel of ['scripts/seed.ts', 'test/health.test.ts']) {
+      if (has(dir, rel)) assert.ok(!read(dir, rel).includes("dotenv/config"), rel);
+    }
+  }
+});
+
+test('roles: one ROLES list in src/config/roles.ts feeds the validation, the model, the controller and the middleware', () => {
+  for (const [name, flags] of [['roles1-mongo', ['--mongo']], ['roles1-pg', ['--postgres', '--rxjs']]]) {
+    const { dir, r } = gen(name, ['--yes', '--no-install', '--auth', '--roles', '--zod', ...flags]);
+    assert.equal(r.status, 0, r.stderr);
+    const roles = read(dir, 'src/config/roles.ts');
+    assert.ok(roles.includes("['user', 'admin'] as const") && roles.includes('export type Role') && roles.includes('isRole'));
+    assert.ok(read(dir, 'src/validation/role.validation.ts').includes('z.enum(ROLES)'));
+    assert.ok(read(dir, 'src/controllers/role.controller.ts').includes('isRole(role)'));
+    assert.ok(read(dir, 'src/middleware/auth.ts').includes('(...roles: Role[])'));
+    if (name.endsWith('mongo')) assert.ok(read(dir, 'src/models/user.schema.ts').includes('enum: ROLES'));
+    // the literal list lives in one file
+    for (const rel of readdirSync(path.join(dir, 'src'), { recursive: true })) {
+      const p = String(rel).split(path.sep).join('/');
+      if (!p.endsWith('.ts') || p === 'config/roles.ts' || p.startsWith('generated/')) continue;
+      assert.ok(!/'user',\s*'admin'/.test(read(dir, 'src/' + p)), `${name}: src/${p} repeats the role list`);
+    }
+    assert.ok(!read(dir, 'scripts/seed.ts').includes('.push('), 'seed builds one array');
+  }
+});
+
+test('seed refuses to run in production', () => {
+  for (const flags of [['--mongo'], ['--postgres']]) {
+    const { dir, r } = gen('seed-prod-' + flags[0].slice(2), ['--yes', '--no-install', '--auth', ...flags]);
+    assert.equal(r.status, 0, r.stderr);
+    const seed = read(dir, 'scripts/seed.ts');
+    assert.ok(seed.includes('env.production') && seed.includes('development only'));
+  }
+});
+
+test('no roles artifacts without --roles: no roles.ts, no Role type', () => {
+  const { dir, r } = gen('noroles-env', ['--yes', '--no-install', '--mongo', '--auth']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(!has(dir, 'src/config/roles.ts'));
+  assert.ok(!/\bRole\b|ROLES/.test(allTs(dir)));
 });

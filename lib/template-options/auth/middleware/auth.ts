@@ -1,6 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import createHttpError from 'http-errors';
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env';
+//{{roles}} import { Role } from '../config/roles';
 
 // 'express' itself: pnpm does not expose its transitive types to the app
 declare module 'express' {
@@ -8,15 +10,9 @@ declare module 'express' {
     auth?: {
       id: string;
       email: string;
-//{{roles}}       role: string;
+//{{roles}}       role: Role;
     };
   }
-}
-
-// Checked at boot (this module loads with the routes), not on the first login.
-const secret = process.env.SECRET_KEY;
-if (!secret) {
-  throw new Error('SECRET_KEY is not set. Add it to your .env file.');
 }
 
 export const requireAuth = (
@@ -30,12 +26,12 @@ export const requireAuth = (
     return;
   }
   try {
-    const payload = jwt.verify(token, secret, {
+    const payload = jwt.verify(token, env.secretKey, {
       algorithms: ['HS256'],
     }) as {
       auth_id: string;
       email: string;
-//{{roles}}       role: string;
+//{{roles}}       role: Role;
     };
     req.auth = {
       id: String(payload.auth_id),
@@ -68,7 +64,7 @@ export const requireSelf = (
 
 //{{roles}} // Use after requireAuth: requireRole('admin') answers 403 for anyone else.
 //{{roles}} export const requireRole =
-//{{roles}}   (...roles: string[]) =>
+//{{roles}}   (...roles: Role[]) =>
 //{{roles}}   (req: Request, _res: Response, next: NextFunction) => {
 //{{roles}}     if (!req.auth || !roles.includes(req.auth.role)) {
 //{{roles}}       next(new createHttpError.Forbidden('Insufficient role'));

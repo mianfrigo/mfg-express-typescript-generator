@@ -1,12 +1,12 @@
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import createHttpError from 'http-errors';
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env';
 import { prisma } from '../config/prisma';
 
 // Short-lived access token + long-lived, rotating refresh token.
-export const ACCESS_TTL = (process.env.ACCESS_TOKEN_TTL ??
-  '15m') as jwt.SignOptions['expiresIn'];
-const REFRESH_DAYS = Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 30);
+export const ACCESS_TTL = env.accessTokenTtl as jwt.SignOptions['expiresIn'];
+const REFRESH_DAYS = env.refreshTokenDays;
 const DAY_MS = 86_400_000;
 
 const sha256 = (value: string) =>
@@ -43,9 +43,6 @@ async function revokeFamily(familyId: string) {
 // A token works once. Presenting a spent one means a copy leaked, so the whole
 // session is revoked.
 export async function refreshSession(token: string) {
-  const secret = process.env.SECRET_KEY;
-  if (!secret) throw new Error('SECRET_KEY is not set');
-
   const record = await prisma.refreshToken.findUnique({
     where: { tokenHash: sha256(token) },
   });
@@ -67,12 +64,12 @@ export async function refreshSession(token: string) {
   // same claims as login; the role is read again, so a promotion applies here
 //{{!roles}}   const authToken = jwt.sign(
 //{{!roles}}     { auth_id: user.id, email: user.email },
-//{{!roles}}     secret,
+//{{!roles}}     env.secretKey,
 //{{!roles}}     { expiresIn: ACCESS_TTL }
 //{{!roles}}   );
 //{{roles}}   const authToken = jwt.sign(
 //{{roles}}     { auth_id: user.id, email: user.email, role: user.role },
-//{{roles}}     secret,
+//{{roles}}     env.secretKey,
 //{{roles}}     { expiresIn: ACCESS_TTL }
 //{{roles}}   );
   const { exp } = jwt.decode(authToken) as { exp: number };
