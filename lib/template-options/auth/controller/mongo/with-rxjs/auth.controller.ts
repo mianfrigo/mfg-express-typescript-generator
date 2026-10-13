@@ -71,11 +71,16 @@ export default class AuthController {
           )
         ),
         map((user) => {
-          const token = jwt.sign(
-            { auth_id: user._id, email: user.email },
-            secret,
-            { expiresIn: '24h' }
-          );
+//{{!roles}}           const token = jwt.sign(
+//{{!roles}}             { auth_id: user._id, email: user.email },
+//{{!roles}}             secret,
+//{{!roles}}             { expiresIn: '24h' }
+//{{!roles}}           );
+//{{roles}}           const token = jwt.sign(
+//{{roles}}             { auth_id: user._id, email: user.email, role: user.role },
+//{{roles}}             secret,
+//{{roles}}             { expiresIn: '24h' }
+//{{roles}}           );
           const { exp } = jwt.decode(token) as { exp: number };
           const { password: _hash, ...authUser } = user.toObject();
           return { authToken: token, authToken_exp: exp, auth_user: authUser };
