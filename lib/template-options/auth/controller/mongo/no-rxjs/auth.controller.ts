@@ -20,9 +20,9 @@ export default class AuthController {
         'firstName, lastName, email and password are required'
       );
     }
-    if (password.length < 8) {
+    if (password.length < 8 || Buffer.byteLength(password) > 72) {
       throw new createHttpError.BadRequest(
-        'password must be at least 8 characters'
+        'password must be 8 to 72 bytes'
       );
     }
     const user = await UserModel.create({

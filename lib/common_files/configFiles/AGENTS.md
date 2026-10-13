@@ -49,7 +49,7 @@ Before you finish a change, run `npm run lint` and `npm run build`.
 - Use the `logger` (`src/config/logger.config.ts`), not `console.log`.
 - List endpoints return `{ data, meta }` through `parsePaging` / `pageOf`.
 #{{zod}} - Validate every request body with `validate(schema)` in the route file; add the schema under `src/validation/`.
-#{{auth}} - Protected routes go behind `requireAuth`; keep `/auth`, `/health` and `/ready` public.
+#{{auth}} - Protected routes go behind `requireAuth`; keep `/auth`, `/health` and `/ready` public. Routes on a user's own record add `requireSelf`.
 #{{refresh}} - Only a hash of a refresh token is stored; never log or return one except in the login and refresh responses. `ACCESS_TOKEN_TTL` and `REFRESH_TOKEN_TTL_DAYS` set the lifetimes.
 #{{roles}} - Admin-only actions add `requireRole('admin')` after `requireAuth`. Never let a request body set `role`: it is deliberately not in the `pick` whitelist.
 

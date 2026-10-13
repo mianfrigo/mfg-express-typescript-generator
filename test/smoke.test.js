@@ -335,6 +335,7 @@ async function checkDbCrud(dir, flags, adminUrl) {
     };
 
     let token;
+    let selfId;
     const missing = kind === 'mongo' ? '0'.repeat(24) : 'does-not-exist';
     const idOf = (o) => o.id ?? o._id;
     if (auth) {
@@ -352,7 +353,18 @@ async function checkDbCrud(dir, flags, adminUrl) {
       assert.ok(login.body.authToken);
       assert.equal(login.body.auth_user.password, undefined);
       token = login.body.authToken;
+      selfId = idOf(login.body.auth_user);
       assert.equal((await call('GET', '/user')).status, 401, 'user routes need a token');
+      const long = await call('POST', '/auth/register', {
+        firstName: 'L', lastName: 'L', email: 'long@x.co', password: 'x'.repeat(73),
+      });
+      assert.equal(long.status, 400, 'bcrypt would silently cut a password at 72 bytes');
+      if (flags.includes('--roles')) {
+        // writes below need an admin; the plain-user cases are in the roles scenario
+        const adminLogin = await call('POST', '/auth', { email: 'admin@example.com', password: 'password123' });
+        assert.equal(adminLogin.status, 200);
+        token = adminLogin.body.authToken;
+      }
     }
 
     const seededList = await call('GET', '/user', undefined, token);
@@ -391,10 +403,19 @@ async function checkDbCrud(dir, flags, adminUrl) {
     assert.equal(one.body.email, 'ada@x.co');
     assert.equal((await call('GET', `/user/${missing}`, undefined, token)).status, 404);
 
-    const upd = await call('PUT', `/user/${idOf(made.body)}`, { firstName: 'Grace' }, token);
+    // with --auth a user may only change themself (an admin may change anyone)
+    const asAdmin = flags.includes('--roles');
+    const target = auth && !asAdmin ? selfId : idOf(made.body);
+    const upd = await call('PUT', `/user/${target}`, { firstName: 'Grace' }, token);
     assert.equal(upd.status, 200);
     assert.equal(upd.body.firstName, 'Grace');
-    assert.equal((await call('PUT', `/user/${missing}`, { firstName: 'X' }, token)).status, 404);
+    if (auth && !asAdmin) {
+      assert.equal((await call('PUT', `/user/${idOf(made.body)}`, { firstName: 'X' }, token)).status, 403);
+    }
+    assert.equal(
+      (await call('PUT', `/user/${missing}`, { firstName: 'X' }, token)).status,
+      auth && !asAdmin ? 403 : 404
+    );
 
     if (kind === 'mongo') {
       const bad = await call('GET', '/user/not-an-object-id', undefined, token);
@@ -407,13 +428,8 @@ async function checkDbCrud(dir, flags, adminUrl) {
       assert.match(inv.body.error.message, /email/);
     }
 
-    if (flags.includes('--roles')) {
-      // delete is admin-only; the roles scenario below deletes as an admin
-      assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 403);
-    } else {
-      assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 200);
-      assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 404);
-    }
+    assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 200);
+    assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 404);
 
     if (flags.includes('--roles')) {
       const decode = (t) => JSON.parse(Buffer.from(t.split('.')[1], 'base64url').toString());
@@ -425,21 +441,23 @@ async function checkDbCrud(dir, flags, adminUrl) {
       const user = await loginAs('reg@x.co');
       assert.equal(decode(user.authToken).role, 'user', 'a registered user is a plain user');
       assert.equal(user.auth_user.role, 'user');
+      const admin = await loginAs('admin@example.com');
+      assert.equal(decode(admin.authToken).role, 'admin', 'the seeded admin');
 
-      const victim = await call('POST', '/user', { firstName: 'V', lastName: 'V', email: 'victim@x.co' }, user.authToken);
+      const victim = await call('POST', '/user', { firstName: 'V', lastName: 'V', email: 'victim@x.co' }, admin.authToken);
       assert.equal(victim.status, 201);
       const vid = idOf(victim.body);
 
-      // a plain user can neither delete nor promote
+      // a plain user can neither create, change, delete nor promote other users
+      assert.equal((await call('POST', '/user', { firstName: 'N', lastName: 'N', email: 'n@x.co' }, user.authToken)).status, 403);
+      assert.equal((await call('PUT', `/user/${vid}`, { firstName: 'Z' }, user.authToken)).status, 403);
       assert.equal((await call('DELETE', `/user/${vid}`, undefined, user.authToken)).status, 403);
       assert.equal((await call('PATCH', `/user/${vid}/role`, { role: 'admin' }, user.authToken)).status, 403);
-      // the role cannot be set through the normal write routes
-      const sneaky = await call('PUT', `/user/${vid}`, { firstName: 'V', role: 'admin' }, user.authToken);
+      // the role cannot be set through the normal write routes, not even on yourself
+      const sneaky = await call('PUT', `/user/${idOf(user.auth_user)}`, { firstName: 'V', role: 'admin' }, user.authToken);
       assert.equal(sneaky.status, 200);
       assert.equal(sneaky.body.role, 'user', 'PUT must ignore role');
 
-      const admin = await loginAs('admin@example.com');
-      assert.equal(decode(admin.authToken).role, 'admin', 'the seeded admin');
       assert.equal((await call('PATCH', `/user/${vid}/role`, { role: 'root' }, admin.authToken)).status, 400);
       assert.equal((await call('PATCH', `/user/${missing}/role`, { role: 'admin' }, admin.authToken)).status, 404);
 
@@ -695,6 +713,7 @@ const MATRIX = {
   'full-mongo-refresh': ['--mongo', '--auth', '--refresh-tokens', '--zod', '--openapi', '--test'],
   'full-postgres-refresh': ['--postgres', '--auth', '--refresh-tokens', '--zod', '--openapi'],
   'full-postgres-refresh-roles-rxjs': ['--postgres', '--auth', '--roles', '--refresh-tokens', '--rxjs', '--limiter'],
+  'full-pnpm-postgres-roles-refresh': ['--pm', 'pnpm', '--postgres', '--auth', '--roles', '--refresh-tokens', '--zod'],
   'full-mongo-refresh-roles-rxjs': ['--mongo', '--auth', '--roles', '--refresh-tokens', '--rxjs'],
   'full-zod': ['--zod'],
   'full-openapi': ['--zod', '--openapi'],
@@ -1894,7 +1913,7 @@ test('plain --auth output has no roles artifacts', () => {
     if (has(dir, 'prisma/schema.prisma')) {
       assert.ok(!read(dir, 'prisma/schema.prisma').includes('role'), 'no role column');
     }
-    assert.ok(!read(dir, 'src/middleware/auth.ts').includes('req.auth'));
+    assert.ok(!/role/.test(read(dir, 'src/middleware/auth.ts')), 'no role claim without --roles');
   }
 });
 
@@ -1963,4 +1982,55 @@ test('plain --auth output has no refresh-token artifacts', () => {
 test('README documents --refresh-tokens', () => {
   const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
   assert.ok(readme.includes('--refresh-tokens') && readme.includes('/auth/refresh'));
+});
+
+test('hardening (mongo + auth + roles + zod + limiter): ownership, admin-only create, auth limiter, 72-byte cap', () => {
+  const { dir, r } = gen('hard-mongo', [
+    '--yes', '--no-install', '--mongo', '--auth', '--roles', '--zod', '--limiter',
+  ]);
+  assert.equal(r.status, 0, r.stderr);
+  const users = read(dir, 'src/routes/user.route.ts');
+  assert.ok(users.includes("router.put('/:id', mainLimiter, requireSelf, validate(updateUserSchema)"));
+  assert.ok(users.includes("router.post('/', mainLimiter, requireRole('admin'), validate(createUserSchema)"));
+  assert.ok(users.includes("router.delete('/:id', mainLimiter, requireRole('admin')"));
+  const mw = read(dir, 'src/middleware/auth.ts');
+  assert.ok(mw.includes('export const requireSelf') && mw.includes("req.auth?.role === 'admin'"));
+  const auth = read(dir, 'src/routes/auth.route.ts');
+  assert.ok(auth.includes("router.post('/', authLimiter, validate(loginSchema)"));
+  assert.ok(auth.includes("router.post('/register', authLimiter,"));
+  const lim = read(dir, 'src/middleware/limiters.ts');
+  assert.ok(lim.includes('export const authLimiter') && lim.includes('skipSuccessfulRequests'));
+  assert.ok(read(dir, 'src/validation/auth.validation.ts').includes('.max(72)'));
+  assert.ok(read(dir, 'src/controllers/auth.controller.ts').includes('byteLength'));
+  assert.ok(!allTs(dir).includes('{{'));
+});
+
+test('hardening (postgres + auth only): self-only PUT, no role gating, no auth limiter', () => {
+  const { dir, r } = gen('hard-pg', ['--yes', '--no-install', '--postgres', '--auth']);
+  assert.equal(r.status, 0, r.stderr);
+  const users = read(dir, 'src/routes/user.route.ts');
+  assert.ok(users.includes("router.put('/:id', requireSelf, userController.updateUser)"));
+  assert.ok(users.includes("router.post('/', userController.createUsers)"));
+  assert.ok(!users.includes('requireRole'));
+  const mw = read(dir, 'src/middleware/auth.ts');
+  assert.ok(mw.includes('requireSelf') && !mw.includes('admin'));
+  assert.ok(!/authLimiter|mainLimiter/.test(allTs(dir)));
+});
+
+test('hardening: without --auth the user routes have no ownership check', () => {
+  const { dir, r } = gen('hard-none', ['--yes', '--no-install']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(!read(dir, 'src/routes/user.route.ts').includes('requireSelf'));
+});
+
+test('error handler: 4xx at warn without a stack, 5xx at error, headersSent respected; no urlencoded; one fatal log line', () => {
+  for (const [name, flags] of [['eh-base', []], ['eh-mongo', ['--mongo']], ['eh-pg', ['--postgres']]]) {
+    const { dir, r } = gen(name, ['--yes', '--no-install', ...flags]);
+    assert.equal(r.status, 0, r.stderr);
+    const eh = read(dir, 'src/middleware/errorHandler.ts');
+    assert.ok(eh.includes('res.headersSent') && eh.includes('logger.warn') && eh.includes('logger.error'), name);
+    assert.ok(!eh.includes('stack: ${err.stack}; ') || eh.includes('>= 500'), name);
+    assert.ok(!read(dir, 'src/app.ts').includes('urlencoded'), name);
+    assert.ok(!read(dir, 'src/index.ts').includes('console.error(`could not listen'), name);
+  }
 });

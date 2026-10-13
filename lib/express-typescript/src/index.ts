@@ -8,7 +8,6 @@ const port = process.env.PORT || 3000;
 // the check the app would log "connected" and idle without listening.
 const server = app.listen(port, (err?: Error) => {
   if (err) {
-    console.error(`could not listen on port ${port}: ${err.message}`);
     logger.error(`could not listen on port ${port}: ${err.message}`);
     process.exit(1);
   }
