@@ -3,7 +3,6 @@
   "version": "2.9.0",
   "description": "Scaffold a production-ready Express 5 + TypeScript API: PostgreSQL (Prisma) or MongoDB, JWT auth, zod validation, OpenAPI/Swagger, tests, CI and Docker. One command.",
   "type": "module",
-  "main": "bin/cli.js",
   "bin": {
     "mfg-express-typescript-generator": "bin/cli.js",
     "mfg-express-generator": "bin/cli.js"
@@ -46,7 +45,6 @@
     "vitest",
     "express-ts"
   ],
-  "preferGlobal": true,
   "author": "Miguel Frias",
   "license": "MIT",
   "bugs": {
