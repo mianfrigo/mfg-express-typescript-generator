@@ -782,6 +782,8 @@ for (const [name, flags] of Object.entries(MATRIX)) {
       assert.equal(r.status, 0, r.stderr);
       pmRun(pm, ['run', 'build'], dir);
       pmRun(pm, ['run', 'lint'], dir);
+      pmRun(pm, ['run', 'typecheck'], dir);
+      pmRun(pm, ['run', 'format:check'], dir);
       if (flags.includes('--test')) pmRun(pm, ['test'], dir);
       if (flags.includes('--zod')) checkValidate(dir, flags);
       if (flags.includes('--openapi')) checkOpenapiDoc(dir, flags);
@@ -2119,4 +2121,48 @@ test('no roles artifacts without --roles: no roles.ts, no Role type', () => {
   assert.equal(r.status, 0, r.stderr);
   assert.ok(!has(dir, 'src/config/roles.ts'));
   assert.ok(!/\bRole\b|ROLES/.test(allTs(dir)));
+});
+
+test('tooling: format scripts, typecheck config, typed lint rules, prettier config that matches the code', () => {
+  const { dir, r } = gen('tool-base', ['--yes', '--no-install']);
+  assert.equal(r.status, 0, r.stderr);
+  const pkg = JSON.parse(read(dir, 'package.json'));
+  assert.equal(pkg.scripts.format, 'prettier --write .');
+  assert.equal(pkg.scripts['format:check'], 'prettier --check .');
+  assert.equal(pkg.scripts.typecheck, 'tsc --noEmit -p tsconfig.check.json');
+  const rc = JSON.parse(read(dir, '.prettierrc.json'));
+  assert.deepEqual(rc, { singleQuote: true, trailingComma: 'es5' });
+  const ign = read(dir, '.prettierignore');
+  for (const p of ['dist', 'src/generated', '*.md']) assert.ok(ign.includes(p), p);
+  const check = JSON.parse(read(dir, 'tsconfig.check.json'));
+  assert.equal(check.extends, './tsconfig.json');
+  assert.deepEqual(check.include, ['src', 'test', 'scripts']);
+  const lint = read(dir, 'eslint.config.mjs');
+  assert.ok(lint.includes('no-floating-promises') && lint.includes('no-misused-promises'));
+  assert.ok(lint.includes('checksVoidReturn: false') && lint.includes('tsconfig.check.json'));
+});
+
+test('tooling: the CI workflow runs format:check and typecheck', () => {
+  const { dir, r } = gen('tool-ci', ['--yes', '--no-install', '--ci']);
+  assert.equal(r.status, 0, r.stderr);
+  const y = read(dir, '.github/workflows/ci.yml');
+  assert.ok(y.includes('npm run format:check') && y.includes('npm run typecheck'));
+});
+
+test('tooling: --auth --test adds a database-free auth example test; otherwise none', () => {
+  for (const [name, flags] of [
+    ['authtest-mongo', ['--mongo']],
+    ['authtest-pg', ['--postgres', '--rxjs', '--roles', '--refresh-tokens']],
+  ]) {
+    const { dir, r } = gen(name, ['--yes', '--no-install', '--auth', '--test', ...flags]);
+    assert.equal(r.status, 0, r.stderr);
+    const t = read(dir, 'test/auth.test.ts');
+    assert.ok(t.includes('vi.mock(') && t.includes('/api/v1/auth') && t.includes('/api/v1/user'));
+    assert.ok(!t.includes('{{'));
+    assert.equal(t.includes('refreshToken'), flags.includes('--refresh-tokens'), name);
+  }
+  for (const flags of [['--test'], ['--mongo', '--auth'], ['--postgres', '--test']]) {
+    const { dir } = gen('noauthtest-' + flags.join(''), ['--yes', '--no-install', ...flags]);
+    assert.ok(!has(dir, 'test/auth.test.ts'), flags.join(' '));
+  }
 });

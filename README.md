@@ -121,12 +121,13 @@ test/                 vitest + supertest (--test)
 This is the real file list from a run of `--postgres --auth --zod --openapi --test --ci --docker` (plus `.env` and `.gitignore`, without `node_modules`):
 
 <details>
-<summary>Show all 35 files</summary>
+<summary>Show all 38 files</summary>
 
 ```text
 .dockerignore
 .env.example
 .github/workflows/ci.yml
+.prettierignore
 .prettierrc.json
 AGENTS.md
 Dockerfile
@@ -157,7 +158,9 @@ src/routes/user.route.ts
 src/utils/pagination.ts
 src/validation/auth.validation.ts
 src/validation/user.validation.ts
+test/auth.test.ts
 test/health.test.ts
+tsconfig.check.json
 tsconfig.json
 ```
 
