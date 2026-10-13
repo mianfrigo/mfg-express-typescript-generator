@@ -1,5 +1,71 @@
 # Changelog
 
+## [2.10.0] - 2026-10-13
+
+A quality release for generated apps: tighter auth, one validated environment,
+and tooling that checks what you write. Existing projects are not touched.
+
+### Security
+- **A user can only change their own record.** `PUT /user/:id` answers 403 for
+  someone else's id (an admin may change anyone with `--roles`), and
+  `POST /user` is admin-only with `--roles`. Before, any logged-in user could
+  rewrite any user.
+- **Login, register, refresh and logout are rate limited on failures** with
+  `--limiter`: `authLimiter`, 20 failed attempts per 15 minutes per IP
+  (successful requests are not counted).
+- **Passwords are capped at 72 bytes** (bcrypt ignores the rest).
+- The error handler logs 4xx at `warn` without a stack and 5xx at `error`,
+  logs only the path (no query string), and honours `res.headersSent`.
+  `express.urlencoded` is removed from the JSON API.
+
+### Fixed
+- **`--roles` failed to build under pnpm** (2.9.0): the `req.auth` type
+  augmentation targeted `express-serve-static-core`, which pnpm's strict
+  `node_modules` does not expose. It now augments `express`.
+- The bind error on a taken port was printed twice.
+
+### Added
+- **`src/config/env.ts`**, the only reader of `process.env`. Every variable is
+  validated once at startup and a bad value stops the app with one message that
+  lists all problems. In production `SECRET_KEY` must be 32+ characters.
+- **`src/config/roles.ts`** (`--roles`): one list (`ROLES`, `Role`, `isRole`)
+  used by the zod enum, the mongoose enum, the role controller,
+  `requireRole(...roles: Role[])` and `req.auth.role`.
+- **`requireSelf`** is exported from the auth middleware and `req.auth` exists
+  for every `--auth` app.
+- **Scripts**: `format`, `format:check`, `typecheck` (`tsconfig.check.json`
+  covers `src`, `test` and `scripts`). The CI workflow runs the last two.
+- **Typed lint rules**: `no-floating-promises` and `no-misused-promises`.
+- **`test/auth.test.ts`** with `--auth --test`: login, wrong password and a
+  guarded route, with the data layer mocked (no database needed).
+- The `--dry-run` summary lists roles and refresh tokens.
+
+### Changed
+- Generated apps are formatted with their own Prettier right after install
+  (cosmetic, never fatal). `.prettierrc.json` is
+  `{ singleQuote, trailingComma: es5 }`, with a `.prettierignore`. With
+  `--no-install`, run `npm run format`.
+- `db:seed` builds one array and refuses to run with `NODE_ENV=production`.
+- Generated files always use LF line endings.
+- The generated CI workflow declares `MONGO_DB` (the tests import the app,
+  which validates the environment).
+- The README is restructured: features, installation, architecture tree.
+
+### Notes for existing projects
+- An invalid `PORT` or `LOG_LEVEL` now stops the app at startup instead of
+  being used silently.
+- If you rely on a normal user editing other users, add the rule back in your
+  route (`requireSelf` is the building block).
+
+### Repo
+- Internals trimmed: every generated file goes through the markers (no
+  hand-kept list), one `user.route.ts` / `auth.route.ts`, `docs/superpowers`
+  removed.
+- The FULL matrix runs `typecheck` and `format:check` on every combination,
+  boots the compiled app with a bad environment, adds a pnpm + roles +
+  refresh-tokens combination, and checks the committed Prisma migration against
+  the schema.
+
 ## [2.9.0] - 2026-10-13
 
 ### Added
