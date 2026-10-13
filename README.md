@@ -13,6 +13,10 @@
   <a href="https://www.npmjs.com/package/@mianfrigo/express-typescript-generator"><img alt="downloads" src="https://img.shields.io/npm/dm/@mianfrigo/express-typescript-generator"></a>
 </p>
 
+<p align="center">
+  <img alt="Generating an API with npm create express-blueprint" src="https://github.com/mianfrigo/mfg-express-typescript-generator/blob/main/docs/demo.gif?raw=true" width="720">
+</p>
+
 ---
 
 ## ✨ Features
