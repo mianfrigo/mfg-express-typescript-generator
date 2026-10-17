@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tidyMarkdown } from '../lib/generate.js';
 import os from 'node:os';
 import path from 'node:path';
 import {
@@ -355,4 +356,16 @@ test('--refresh-tokens is flag-only, needs --auth, and is an allowed config key'
   assert.doesNotThrow(() =>
     parseCli(['--mongo', '--auth'], { config: { 'refresh-tokens': true } })
   );
+});
+
+test('validateName rejects the names of the generated app\'s own dependencies', () => {
+  for (const bad of ['express', 'zod', 'prisma', 'winston']) {
+    assert.throws(() => validateName(bad), /dependenc/, bad);
+  }
+  assert.doesNotThrow(() => validateName('my-express'));
+});
+
+test('tidyMarkdown collapses blank runs but not inside code fences', () => {
+  const md = 'a\n\n\n\nb\n```sql\nx\n\n\n\ny\n```\n\n\n\nc\n';
+  assert.equal(tidyMarkdown(md), 'a\n\nb\n```sql\nx\n\n\n\ny\n```\n\nc\n');
 });

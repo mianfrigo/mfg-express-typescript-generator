@@ -17,7 +17,7 @@ router.get('/:id', mainLimiter, userController.getSingleUser);
 //{{zod}} router.post('/', mainLimiter, requireRole('admin'), validate(createUserSchema), userController.createUsers);
 //{{!zod}} router.post('/', mainLimiter, requireRole('admin'), userController.createUsers);
 
-router.delete('/:id', mainLimiter, requireRole('admin'), userController.removeUser);
+router.delete('/:id', mainLimiter, requireRole('admin'), requireSelf, userController.removeUser);
 
 //{{zod}} router.put('/:id', mainLimiter, requireSelf, validate(updateUserSchema), userController.updateUser);
 //{{!zod}} router.put('/:id', mainLimiter, requireSelf, userController.updateUser);

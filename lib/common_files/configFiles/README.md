@@ -86,7 +86,7 @@ Logs go to stdout: JSON when `NODE_ENV=production`, readable text otherwise.
 #{{roles}} - `npm run db:seed` also creates `admin@example.com` (role `admin`, same development-only password).
 #{{roles}} - Protect your own routes with `requireRole('admin')` after `requireAuth` (see `src/middleware/auth.ts`).
 
-#{{roles}} A role is read from the token, so a promotion applies on the next login (or token refresh).
+#{{roles}} The admin checks (`requireRole`, `requireSelf`) read the current role from the database, so a demotion or a deleted user takes effect immediately. The role in the token is only a convenience for display.
 
 #{{refresh}} ## Refresh tokens
 

@@ -55,6 +55,13 @@ export const env = {
 //{{auth}}   problems.push('SECRET_KEY must be at least 32 characters in production.');
 //{{auth}} }
 
+//{{refresh}} // jsonwebtoken reads a bare number as milliseconds, so a unit is required
+//{{refresh}} if (!/^\d+\s*(ms|s|m|h|d|w)$/i.test(env.accessTokenTtl)) {
+//{{refresh}}   problems.push(
+//{{refresh}}     `ACCESS_TOKEN_TTL must be a duration such as 15m, 1h or 7d (got "${env.accessTokenTtl}")`
+//{{refresh}}   );
+//{{refresh}} }
+
 if (problems.length > 0) {
   throw new Error(`Invalid environment:\n- ${problems.join('\n- ')}`);
 }

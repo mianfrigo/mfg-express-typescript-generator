@@ -31,4 +31,5 @@ model User {
 //{{refresh}}   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 //{{refresh}}   @@index([userId])
 //{{refresh}}   @@index([familyId])
+//{{refresh}}   @@index([expiresAt])
 //{{refresh}} }
