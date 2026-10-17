@@ -2,7 +2,9 @@ import { NextFunction, Request, Response } from 'express';
 import createHttpError from 'http-errors';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
+//{{rolespg}} import { prisma } from '../config/prisma';
 //{{roles}} import { Role } from '../config/roles';
+//{{rolesmongo}} import UserModel from '../models/user.schema';
 
 // 'express' itself: pnpm does not expose its transitive types to the app
 declare module 'express' {
@@ -44,16 +46,25 @@ export const requireAuth = (
   }
 };
 
+//{{roles}} // The role in the token can be stale until it expires, so the admin checks
+//{{roles}} // read the current one (a deleted user has none).
+//{{roles}} const currentRole = async (id: string) => {
+//{{rolespg}}   const user = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+//{{rolesmongo}}   const user = await UserModel.findById(id).select('role');
+//{{roles}}   return user?.role as Role | undefined;
+//{{roles}} };
+
 // Use after requireAuth, on routes with an :id: a user may only act on their
 // own record.
 //{{roles}} // An admin may act on any record.
-export const requireSelf = (
+//{{roles}} export const requireSelf = async (
+//{{!roles}} export const requireSelf = (
   req: Request,
   _res: Response,
   next: NextFunction
 ) => {
   const self = req.auth?.id === req.params.id;
-//{{roles}}   const admin = req.auth?.role === 'admin';
+//{{roles}}   const admin = !self && req.auth && (await currentRole(req.auth.id)) === 'admin';
 //{{roles}}   if (self || admin) {
 //{{!roles}}   if (self) {
     next();
@@ -65,8 +76,9 @@ export const requireSelf = (
 //{{roles}} // Use after requireAuth: requireRole('admin') answers 403 for anyone else.
 //{{roles}} export const requireRole =
 //{{roles}}   (...roles: Role[]) =>
-//{{roles}}   (req: Request, _res: Response, next: NextFunction) => {
-//{{roles}}     if (!req.auth || !roles.includes(req.auth.role)) {
+//{{roles}}   async (req: Request, _res: Response, next: NextFunction) => {
+//{{roles}}     const role = req.auth && (await currentRole(req.auth.id));
+//{{roles}}     if (!role || !roles.includes(role)) {
 //{{roles}}       next(new createHttpError.Forbidden('Insufficient role'));
 //{{roles}}       return;
 //{{roles}}     }

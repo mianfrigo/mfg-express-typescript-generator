@@ -22,7 +22,7 @@ Before you finish a change, run `npm run lint` and `npm run build`.
 - `src/routes/index.ts` — mounts the routers; `src/routes/user.route.ts` is the example resource.
 #{{auth}} - `src/routes/auth.route.ts` and `src/controllers/auth.controller.ts` — register and login (JWT); `src/middleware/auth.ts` exports `requireAuth`.
 #{{refresh}} - `src/services/tokens.ts` — refresh tokens: `issueRefreshToken` (login), `refreshSession` (rotation, reuse detection) and `revokeSession` (logout); `src/controllers/token.controller.ts` serves `POST /auth/refresh` and `POST /auth/logout`.
-#{{roles}} - `src/config/roles.ts` is the one list of roles (`ROLES`, `Role`, `isRole`). `src/middleware/auth.ts` also exports `requireRole(...roles)` (use it after `requireAuth`; it reads `req.auth.role`); `src/routes/role.route.ts` and `src/controllers/role.controller.ts` implement `PATCH /user/:id/role` (admin-only).
+#{{roles}} - `src/config/roles.ts` is the one list of roles (`ROLES`, `Role`, `isRole`). `src/middleware/auth.ts` also exports `requireRole(...roles)` (use it after `requireAuth`; it reads the current role from the database, not the token); `src/routes/role.route.ts` and `src/controllers/role.controller.ts` implement `PATCH /user/:id/role` (admin-only).
 - `src/controllers/user.controller.ts` — handlers for the example resource.
 - `src/middleware/errorHandler.ts` — `notFound` and `handleError`; maps database errors to HTTP statuses.
 #{{limiter}} - `src/middleware/limiters.ts` — `mainLimiter` (express-rate-limit), applied per route.

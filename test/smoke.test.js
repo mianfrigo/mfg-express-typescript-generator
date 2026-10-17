@@ -16,6 +16,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { generateApp } from '../lib/generate.js';
 
 const bin = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
 const rootPkg = JSON.parse(
@@ -83,7 +84,7 @@ test('mongo + auth', () => {
 });
 
 test('mongo + rxjs', () => {
-  const { dir, r } = gen('rxjs', ['--yes', '--no-install', '--mongo', '--rxjs']);
+  const { dir, r } = gen('rxjs-app', ['--yes', '--no-install', '--mongo', '--rxjs']);
   assert.equal(r.status, 0, r.stderr);
   assert.ok(pkg(dir).dependencies.rxjs);
   assert.ok(read(dir, 'src/controllers/user.controller.ts').includes('rxjs'));
@@ -186,6 +187,7 @@ function checkRequireAuth(dir) {
 function checkEnvFailFast(dir, flags) {
   const bad = { PORT: 'abc', LOG_LEVEL: 'loud' };
   if (flags.includes('--auth')) bad.SECRET_KEY = '';
+  if (flags.includes('--refresh-tokens')) bad.ACCESS_TOKEN_TTL = '15 minutes';
   const r = spawnSync(process.execPath, ['dist/index.js'], {
     cwd: dir,
     encoding: 'utf8',
@@ -198,6 +200,7 @@ function checkEnvFailFast(dir, flags) {
   assert.match(out, /PORT must be/);
   assert.match(out, /LOG_LEVEL must be/);
   if (flags.includes('--auth')) assert.match(out, /SECRET_KEY is not set/);
+  if (flags.includes('--refresh-tokens')) assert.match(out, /ACCESS_TOKEN_TTL must be/);
 }
 
 // compiled validate middleware + schemas, no MongoDB needed
@@ -446,8 +449,13 @@ async function checkDbCrud(dir, flags, adminUrl) {
       assert.match(inv.body.error.message, /email/);
     }
 
-    assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 200);
-    assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 404);
+    // with --auth only the owner (or an admin) may delete
+    const gone = auth && !asAdmin ? selfId : idOf(made.body);
+    if (gone !== idOf(made.body)) {
+      assert.equal((await call('DELETE', `/user/${idOf(made.body)}`, undefined, token)).status, 403);
+    }
+    assert.equal((await call('DELETE', `/user/${gone}`, undefined, token)).status, 200);
+    assert.equal((await call('DELETE', `/user/${gone}`, undefined, token)).status, 404);
 
     if (flags.includes('--roles')) {
       const decode = (t) => JSON.parse(Buffer.from(t.split('.')[1], 'base64url').toString());
@@ -487,6 +495,10 @@ async function checkDbCrud(dir, flags, adminUrl) {
       const again = await loginAs('reg@x.co');
       assert.equal(decode(again.authToken).role, 'admin');
       assert.equal((await call('DELETE', `/user/${vid}`, undefined, again.authToken)).status, 200);
+      // demote: the token still says admin, the database no longer does
+      assert.equal((await call('PATCH', `/user/${idOf(user.auth_user)}/role`, { role: 'user' }, admin.authToken)).status, 200);
+      assert.equal((await call('DELETE', `/user/${missing}`, undefined, again.authToken)).status, 403, 'stale admin token');
+      assert.equal((await call('DELETE', `/user/${missing}`, undefined, admin.authToken)).status, 404, 'a real admin still passes');
     }
 
     if (flags.includes('--refresh-tokens')) {
@@ -816,7 +828,7 @@ test('error handler hides internals on 5xx and duplicate-key', () => {
 });
 
 test('cors allow-list matches exact origins and never errors', () => {
-  const { dir, r } = gen('cors', ['--yes', '--no-install']);
+  const { dir, r } = gen('cors-app', ['--yes', '--no-install']);
   assert.equal(r.status, 0, r.stderr);
   const c = read(dir, 'src/config/config.ts');
   assert.ok(c.includes('allowed.includes(origin)'));
@@ -2020,10 +2032,10 @@ test('hardening (mongo + auth + roles + zod + limiter): ownership, admin-only cr
   assert.ok(users.includes("router.post('/', mainLimiter, requireRole('admin'), validate(createUserSchema)"));
   assert.ok(users.includes("router.delete('/:id', mainLimiter, requireRole('admin')"));
   const mw = read(dir, 'src/middleware/auth.ts');
-  assert.ok(mw.includes('export const requireSelf') && mw.includes("req.auth?.role === 'admin'"));
+  assert.ok(mw.includes('export const requireSelf') && mw.includes("(await currentRole(req.auth.id)) === 'admin'"));
   const auth = read(dir, 'src/routes/auth.route.ts');
   assert.ok(auth.includes("router.post('/', authLimiter, validate(loginSchema)"));
-  assert.ok(auth.includes("router.post('/register', authLimiter,"));
+  assert.ok(auth.includes("router.post('/register', mainLimiter, authLimiter,"));
   const lim = read(dir, 'src/middleware/limiters.ts');
   assert.ok(lim.includes('export const authLimiter') && lim.includes('skipSuccessfulRequests'));
   assert.ok(read(dir, 'src/validation/auth.validation.ts').includes('.max(72)'));
@@ -2165,4 +2177,66 @@ test('tooling: --auth --test adds a database-free auth example test; otherwise n
     const { dir } = gen('noauthtest-' + flags.join(''), ['--yes', '--no-install', ...flags]);
     assert.ok(!has(dir, 'test/auth.test.ts'), flags.join(' '));
   }
+});
+
+test('review fixes: DELETE needs ownership without --roles, admin and ownership with it', () => {
+  const plain = gen('rv-plain', ['--yes', '--no-install', '--postgres', '--auth']);
+  assert.ok(read(plain.dir, 'src/routes/user.route.ts').includes("router.delete('/:id', requireSelf, userController.removeUser)"));
+  const roles = gen('rv-roles', ['--yes', '--no-install', '--mongo', '--auth', '--roles', '--limiter']);
+  assert.ok(read(roles.dir, 'src/routes/user.route.ts').includes("router.delete('/:id', mainLimiter, requireRole('admin'), requireSelf, userController.removeUser)"));
+});
+
+test('review fixes: register is capped by volume (mainLimiter) and by failures (authLimiter)', () => {
+  const { dir, r } = gen('rv-lim', ['--yes', '--no-install', '--mongo', '--auth', '--limiter']);
+  assert.equal(r.status, 0, r.stderr);
+  const a = read(dir, 'src/routes/auth.route.ts');
+  assert.ok(a.includes("router.post('/register', mainLimiter, authLimiter,"));
+  assert.ok(a.includes("import { authLimiter, mainLimiter } from '../middleware/limiters'"));
+  const none = gen('rv-nolim', ['--yes', '--no-install', '--mongo', '--auth']);
+  assert.ok(!/Limiter/.test(read(none.dir, 'src/routes/auth.route.ts')));
+});
+
+test('review fixes: ACCESS_TOKEN_TTL is validated, the expiry column is indexed', () => {
+  const { dir, r } = gen('rv-ttl', ['--yes', '--no-install', '--postgres', '--auth', '--refresh-tokens']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(read(dir, 'src/config/env.ts').includes('ACCESS_TOKEN_TTL must be'));
+  assert.ok(read(dir, 'prisma/schema.prisma').includes('@@index([expiresAt])'));
+  const mig = readdirSync(path.join(dir, 'prisma/migrations')).find((m) => m.endsWith('_init'));
+  assert.ok(read(dir, `prisma/migrations/${mig}/migration.sql`).includes('"RefreshToken_expiresAt_idx"'));
+});
+
+test('review fixes: admin routes read the current role from the database', () => {
+  for (const [name, flag, call] of [['rv-role-pg', '--postgres', 'prisma.user.findUnique'], ['rv-role-mongo', '--mongo', 'UserModel.findById']]) {
+    const { dir, r } = gen(name, ['--yes', '--no-install', '--auth', '--roles', flag]);
+    assert.equal(r.status, 0, r.stderr);
+    const m = read(dir, 'src/middleware/auth.ts');
+    assert.ok(m.includes('currentRole') && m.includes(call), name);
+  }
+});
+
+test('review fixes: /refresh and /logout use the zod schema with --zod only', () => {
+  const on = gen('rv-rz', ['--yes', '--no-install', '--mongo', '--auth', '--refresh-tokens', '--zod']);
+  const a = read(on.dir, 'src/routes/auth.route.ts');
+  assert.ok(a.includes("router.post('/refresh', validate(refreshSchema), tokenController.refresh)"));
+  assert.ok(a.includes("router.post('/logout', validate(refreshSchema), tokenController.logout)"));
+  assert.ok(a.includes("import { refreshSchema } from '../validation/auth.validation'"));
+  const off = gen('rv-rn', ['--yes', '--no-install', '--mongo', '--auth', '--refresh-tokens']);
+  assert.ok(!read(off.dir, 'src/routes/auth.route.ts').includes('refreshSchema'));
+});
+
+test('review fixes: --here never rewrites an existing .git', () => {
+  const dir = path.join(tmp, 'here-git');
+  mkdirSync(path.join(dir, '.git'), { recursive: true });
+  const bytes = Buffer.from([0xff, 0xfe, 0x0d, 0x0a, 0x80, 0x00]);
+  writeFileSync(path.join(dir, '.git', 'index'), bytes);
+  const r = spawnSync(process.execPath, [bin, '--here', '--yes', '--no-install', '--no-git'], { encoding: 'utf8', cwd: dir });
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(readFileSync(path.join(dir, '.git', 'index')), bytes);
+  assert.ok(has(dir, 'src/index.ts'));
+});
+
+test('review fixes: a failed run does not leave a half-written directory behind', async () => {
+  const dir = path.join(tmp, 'rv-partial');
+  await assert.rejects(generateApp(dir, { db: 'bogus', install: false, git: false, agents: true }));
+  assert.ok(!existsSync(dir));
 });

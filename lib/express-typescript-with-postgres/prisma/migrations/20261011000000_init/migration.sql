@@ -36,5 +36,8 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 --{{refresh}} -- CreateIndex
 --{{refresh}} CREATE INDEX "RefreshToken_familyId_idx" ON "RefreshToken"("familyId");
 
+--{{refresh}} -- CreateIndex
+--{{refresh}} CREATE INDEX "RefreshToken_expiresAt_idx" ON "RefreshToken"("expiresAt");
+
 --{{refresh}} -- AddForeignKey
 --{{refresh}} ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
