@@ -1,5 +1,41 @@
 # Changelog
 
+## [2.11.0] - 2026-10-17
+
+Fixes from a full-project review. Existing projects are not touched.
+
+### Security
+- **`DELETE /user/:id` needs ownership.** Without `--roles` only the owner can
+  delete a user (`requireSelf`); with `--roles` it needs the admin role as well.
+  Before, any signed-in user could delete anyone.
+- **Admin checks read the current role from the database.** `requireRole` and
+  `requireSelf` no longer trust the role in the token, so a demotion or a
+  deleted user takes effect immediately. Other routes still verify the token
+  only (it expires after 15 minutes with `--refresh-tokens`, 24 hours
+  without).
+- **Registration is rate limited.** `POST /auth/register` is behind both
+  `mainLimiter` (every request) and `authLimiter` (failures); successful
+  registrations were never counted before.
+- `/auth/refresh` and `/auth/logout` validate the body with the zod schema
+  (`--zod`), like every other route.
+
+### Fixed
+- `ACCESS_TOKEN_TTL` is validated at startup (a unit is required, for example
+  `15m`, `1h`, `7d`). A bad value used to be found on the first login, as a 500.
+- `RefreshToken.expiresAt` is indexed: the cleanup that runs when a token is
+  issued scanned the whole table.
+- `--here` no longer rewrites files inside an existing `.git` directory.
+- A failed generation removes the directory it created, so the same command can
+  be run again. (A failed install still keeps the files, on purpose.)
+- Blank lines inside code fences of the generated Markdown are kept.
+- A project cannot be named after one of its own dependencies (`express`,
+  `zod`, `prisma`...): npm refuses to install such a package.
+
+### Notes for existing projects
+- `POST /user` stays open to any signed-in user without `--roles`: there is no
+  admin to restrict it to. Add your own rule if you need one.
+- If you rely on a user deleting another user, add that rule to your route.
+
 ## [2.10.0] - 2026-10-13
 
 A quality release for generated apps: tighter auth, one validated environment,
