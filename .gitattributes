@@ -1,0 +1,2 @@
+# the Claude Code hooks are bash scripts: keep LF so a Windows checkout does not break the shebang
+*.sh text eol=lf
