@@ -1617,11 +1617,21 @@ test('package.json is discoverable: description and keywords', () => {
   for (const word of ['Express', 'TypeScript', 'Prisma', 'MongoDB', 'OpenAPI', 'Docker']) {
     assert.ok(description.includes(word), `description mentions ${word}`);
   }
+  assert.ok(/starter/i.test(description), 'the word people search for ("express typescript starter")');
   assert.ok(description.length <= 220, 'description stays scannable');
   for (const k of ['express', 'typescript', 'generator', 'scaffold', 'openapi', 'swagger', 'prisma',
     'postgresql', 'mongodb', 'zod', 'jwt', 'docker', 'starter', 'boilerplate', 'rest-api']) {
     assert.ok(keywords.includes(k), `keyword ${k}`);
   }
+});
+
+test('release workflow creates a GitHub Release from the changelog entry, once', () => {
+  const wf = readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(wf, /contents: write/);
+  assert.ok(wf.includes('gh release view') && wf.includes('gh release create'), 'idempotent: view before create');
+  assert.ok(wf.includes('CHANGELOG.md') && wf.includes('--notes-file'), 'notes come from the changelog');
+  assert.ok(wf.indexOf('gh release create') > wf.indexOf('npm publish --provenance'), 'after the publish');
+  assert.ok(wf.includes('continue-on-error: true'), 'a release-notes hiccup never fails a published release');
 });
 
 test('CI triggers: no duplicate push + pull_request runs; docs-only changes skip database and docker, never test', () => {
