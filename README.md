@@ -80,24 +80,6 @@ The wizard only runs on a terminal when nothing has been decided yet. Pass `--ye
 
 ---
 
-## 🤔 Which generator should you use?
-
-There are good lean generators, for example [express-generator-typescript](https://www.npmjs.com/package/express-generator-typescript): a small Express + TypeScript skeleton with no ORM, on a recent Node. If that is what you want, use it.
-
-This package is for when you want the next layer wired up and verified, and still want to choose each piece:
-
-| You want | Here |
-|---|---|
-| A database with migrations | `--postgres` (Prisma) or `--mongo` (mongoose), a local compose file, seed data |
-| Login and protected routes | `--auth` (JWT, bcrypt, `requireAuth`), `--roles`, `--refresh-tokens` |
-| Validated input and living API docs | `--zod`, `--openapi` (Swagger UI from the same schemas) |
-| Tests, CI and containers | `--test`, `--ci`, `--docker` (full-stack `docker compose up --build`) |
-| Production basics by default | `/health` and `/ready`, graceful shutdown, stdout logs, pagination, `.env.example`, `AGENTS.md` for AI agents |
-
-A matrix of option combinations is generated, installed, built, linted and run in CI, against real PostgreSQL and MongoDB, with npm, pnpm and yarn, and a release is blocked if any of it fails.
-
----
-
 ## 🧱 Architecture
 
 The generated app is layered, which suits a CRUD API. To add a resource, copy the user controller and route.
@@ -191,7 +173,7 @@ tsconfig.json
 | **Tooling** | |
 | `--test` | vitest + supertest with an example test in `test/` (`npm test`) |
 | `--ci` | GitHub Actions workflow: install, lint, build, test; with a Postgres service for `--postgres` |
-| `--docker` | Multi-stage `Dockerfile`, `.dockerignore`, and a full-stack `docker-compose.yml` (database, migrations, app) |
+| `--docker` | Multi-stage `Dockerfile`, `.dockerignore`, and a full-stack `docker-compose.yml` (database, migrations, app): `docker compose up --build` runs it all |
 | **CLI** | |
 | `--pm npm\|pnpm\|yarn` | Package manager for install (default: the one that launched the CLI, else `npm`) |
 | `--git`, `--no-git` | Force or skip `git init` (default: init unless already inside a repo) |

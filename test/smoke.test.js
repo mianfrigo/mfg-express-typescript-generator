@@ -1606,8 +1606,7 @@ test('trust files: security policy, contributing guide, issue and PR templates',
 test('README hero: CI badge, one-line pitch and an honest "which one" section', () => {
   const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
   assert.ok(readme.includes('actions/workflows/test.yml/badge.svg'), 'CI badge');
-  assert.match(readme, /^## \S+ Which generator should you use\?\r?$/m);
-  assert.ok(readme.includes('express-generator-typescript'), 'names the lean alternative');
+  assert.ok(!readme.includes('express-generator-typescript'), 'does not advertise a competitor');
   assert.ok(readme.includes('### What you get, for real'), 'shows a real generated tree');
   assert.ok(readme.includes('src/validation/user.validation.ts'), 'tree comes from a real run');
 });
@@ -1648,6 +1647,26 @@ test('README file list matches a real run of the flagship combination', () => {
     .filter((p) => !p.startsWith('.git/') && p !== '.env' && p !== '.gitignore')
     .sort();
   assert.deepEqual(listed, actual, 'README tree must equal the generated files (minus .env, .gitignore, .git)');
+});
+
+test('CI triggers: no duplicate push + pull_request runs; docs-only changes skip database and docker, never test', () => {
+  const wf = (n) => readFileSync(new URL(`../.github/workflows/${n}.yml`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  for (const n of ['test', 'database', 'docker']) {
+    const y = wf(n);
+    assert.ok(!y.includes('on: [push, pull_request]'), `${n}: push runs on every branch next to pull_request`);
+    assert.match(y, /\n {2}push:\n {4}branches: \[main\]\n/, `${n}: push only on main`);
+    assert.match(y, /\n {2}pull_request:/, `${n}: pull requests`);
+  }
+  // test is the required status check: it must run for every PR (the README tests live in it)
+  assert.ok(!wf('test').includes('paths-ignore'));
+  for (const n of ['database', 'docker']) {
+    const y = wf(n);
+    for (const p of ['README.md', 'CHANGELOG.md', '.claude/**', 'LICENSE']) {
+      assert.ok(y.includes(`- '${p}'`), `${n} ignores ${p}`);
+    }
+    assert.ok(!y.includes('**.md'), `${n}: **.md would also skip the generated-app templates`);
+    assert.equal(y.split('paths-ignore:').length - 1, 2, `${n}: both the push and pull_request triggers`);
+  }
 });
 
 test('release workflow: the test step defines NODE_AUTH_TOKEN so yarn can read the .npmrc setup-node writes', () => {

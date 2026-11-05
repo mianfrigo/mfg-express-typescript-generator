@@ -1,5 +1,9 @@
 name: test
-on: [push, pull_request]
+# push only on main: a PR branch would otherwise run everything twice (push + pull_request)
+on:
+  push:
+    branches: [main]
+  pull_request:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
