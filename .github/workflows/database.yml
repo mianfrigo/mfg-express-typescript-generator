@@ -1,5 +1,20 @@
 name: database
-on: [push, pull_request]
+# push only on main (a PR branch would run everything twice); a change that only touches
+# these files cannot affect the generated apps, so it skips the database runs
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.claude/**'
+      - 'LICENSE'
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.claude/**'
+      - 'LICENSE'
 jobs:
   postgres:
     # Boots the generated --postgres apps against a real PostgreSQL, seeds them
