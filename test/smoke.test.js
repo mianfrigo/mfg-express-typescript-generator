@@ -1640,6 +1640,26 @@ test('README file list matches a real run of the flagship combination', () => {
   assert.deepEqual(listed, actual, 'README tree must equal the generated files (minus .env, .gitignore, .git)');
 });
 
+test('CI triggers: no duplicate push + pull_request runs; docs-only changes skip database and docker, never test', () => {
+  const wf = (n) => readFileSync(new URL(`../.github/workflows/${n}.yml`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  for (const n of ['test', 'database', 'docker']) {
+    const y = wf(n);
+    assert.ok(!y.includes('on: [push, pull_request]'), `${n}: push runs on every branch next to pull_request`);
+    assert.match(y, /\n {2}push:\n {4}branches: \[main\]\n/, `${n}: push only on main`);
+    assert.match(y, /\n {2}pull_request:/, `${n}: pull requests`);
+  }
+  // test is the required status check: it must run for every PR (the README tests live in it)
+  assert.ok(!wf('test').includes('paths-ignore'));
+  for (const n of ['database', 'docker']) {
+    const y = wf(n);
+    for (const p of ['README.md', 'CHANGELOG.md', '.claude/**', 'LICENSE']) {
+      assert.ok(y.includes(`- '${p}'`), `${n} ignores ${p}`);
+    }
+    assert.ok(!y.includes('**.md'), `${n}: **.md would also skip the generated-app templates`);
+    assert.equal(y.split('paths-ignore:').length - 1, 2, `${n}: both the push and pull_request triggers`);
+  }
+});
+
 test('release workflow: the test step defines NODE_AUTH_TOKEN so yarn can read the .npmrc setup-node writes', () => {
   const wf = readFileSync(
     new URL('../.github/workflows/release.yml', import.meta.url),
