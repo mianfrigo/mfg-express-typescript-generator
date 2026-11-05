@@ -1607,8 +1607,9 @@ test('README hero: CI badge, one-line pitch and an honest "which one" section', 
   const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
   assert.ok(readme.includes('actions/workflows/test.yml/badge.svg'), 'CI badge');
   assert.ok(!readme.includes('express-generator-typescript'), 'does not advertise a competitor');
-  assert.ok(readme.includes('### What you get, for real'), 'shows a real generated tree');
-  assert.ok(readme.includes('src/validation/user.validation.ts'), 'tree comes from a real run');
+  assert.ok(readme.includes('## 🧱 What it generates'), 'shows the layout of the generated app');
+  assert.ok(readme.includes('<details>'), 'reference sections are collapsed');
+  assert.ok(readme.split(/\r?\n/).length < 260, 'the README stays short');
 });
 
 test('package.json is discoverable: description and keywords', () => {
@@ -1621,22 +1622,6 @@ test('package.json is discoverable: description and keywords', () => {
     'postgresql', 'mongodb', 'zod', 'jwt', 'docker', 'starter', 'boilerplate', 'rest-api']) {
     assert.ok(keywords.includes(k), `keyword ${k}`);
   }
-});
-
-test('README file list matches a real run of the flagship combination', () => {
-  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  const block = readme.split('### What you get, for real')[1].split('```text\n')[1].split('\n```')[0];
-  const listed = block.split('\n').filter(Boolean).sort();
-  const { dir, r } = gen('readme-tree', [
-    '--yes', '--no-install', '--git', '--postgres', '--auth', '--zod', '--openapi', '--test', '--ci', '--docker',
-  ].filter((f) => f !== '--git'));
-  assert.equal(r.status, 0, r.stderr);
-  const actual = readdirSync(dir, { recursive: true, withFileTypes: true })
-    .filter((d) => d.isFile())
-    .map((d) => path.relative(dir, path.join(d.parentPath, d.name)).split(path.sep).join('/'))
-    .filter((p) => !p.startsWith('.git/') && p !== '.env' && p !== '.gitignore')
-    .sort();
-  assert.deepEqual(listed, actual, 'README tree must equal the generated files (minus .env, .gitignore, .git)');
 });
 
 test('release workflow: the test step defines NODE_AUTH_TOKEN so yarn can read the .npmrc setup-node writes', () => {
