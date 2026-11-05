@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.11.1] - 2026-11-05
+
+No change to what the generator creates. This release updates what people see
+on npm and GitHub.
+
+### Changed
+- The README is shorter and easier to scan: Installation and Quick start are
+  one section, and the reference material (scripts and endpoints, Swagger and
+  authentication, configuration and databases, `.mfgrc.json`) is collapsed.
+  The "Which generator should you use?" section and the 38-file list are gone.
+- The package description now says "starter" (`Express 5 + TypeScript starter
+  and generator…`) and mentions roles and refresh tokens, so it is found by the
+  words people search for. The same for `create-express-blueprint` (1.0.1).
+
+### Repo
+- Each release now creates a GitHub Release from its changelog entry
+  (best effort, once per tag).
+- CI no longer runs every workflow twice per pull request (push runs on `main`
+  only), and the database and docker workflows skip changes that only touch
+  `README.md`, `CHANGELOG.md`, `.claude/**` or `LICENSE`.
+- Project Claude Code configuration (`.claude/`) is part of the repository.
+
 ## [2.11.0] - 2026-10-17
 
 Fixes from a full-project review. Existing projects are not touched.

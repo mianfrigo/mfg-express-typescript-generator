@@ -1,6 +1,6 @@
 {
   "name": "create-express-blueprint",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "npm create express-blueprint: an Express 5 + TypeScript starter that scaffolds a production-ready API (PostgreSQL or MongoDB, auth, zod, OpenAPI, tests, CI, Docker).",
   "type": "module",
   "bin": {
