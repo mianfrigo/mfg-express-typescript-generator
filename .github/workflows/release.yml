@@ -4,7 +4,7 @@ on:
     tags:
       - 'v*'
 permissions:
-  contents: read
+  contents: write # GitHub Release
   id-token: write # npm provenance
 jobs:
   publish:
@@ -49,6 +49,16 @@ jobs:
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # The GitHub Releases page (and its RSS feed) shows the changelog entry of the
+      # tag. Best effort: a hiccup here must not fail a release that is already on npm.
+      - name: GitHub Release
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && exit 0
+          awk -v v="${GITHUB_REF_NAME#v}" '/^## \[/ { p = index($0, "[" v "]") > 0; next } p' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
       # create-express-blueprint (npm create express-blueprint) is a thin package with its own
       # version. It is published once per version, after the generator it runs.
       - name: Is create-express-blueprint already on npm?
