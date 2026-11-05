@@ -1,6 +1,6 @@
 {
   "name": "@mianfrigo/express-typescript-generator",
-  "version": "2.11.0",
+  "version": "2.11.1",
   "description": "Express 5 + TypeScript starter and generator: PostgreSQL (Prisma) or MongoDB, JWT auth with roles and refresh tokens, zod, OpenAPI/Swagger, tests, CI and Docker. One command.",
   "type": "module",
   "bin": {
