@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.11.2] - 2026-11-15
+
+No change to what the generator creates.
+
+### Changed
+- Updated `@clack/prompts` (the interactive wizard) from 1.8.1 to 1.9.0.
+
 ## [2.11.1] - 2026-11-05
 
 No change to what the generator creates. This release updates what people see
