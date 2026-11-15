@@ -55,6 +55,6 @@
     "test": "node --test test/options.test.js test/smoke.test.js test/wizard.test.js"
   },
   "dependencies": {
-    "@clack/prompts": "1.8.1"
+    "@clack/prompts": "1.9.0"
   }
 }
